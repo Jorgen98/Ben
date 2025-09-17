@@ -1,0 +1,90 @@
+services:
+  ben-proxy-server:
+    container_name: ben-proxy-server
+    image: nginx:1.19
+    depends_on:
+      ben-db-postgres:
+        condition: service_healthy
+    ports:
+      - 80:80
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - ben-network
+  ben-be-fetch:
+    container_name: ben-be-fetch
+    build:
+      context: ./
+      dockerfile: ./backend/Dockerfile-be-fetch
+    depends_on:
+      ben-db-postgres:
+        condition: service_healthy
+    environment:
+      TZ: "Europe/Bratislava"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 3s
+        max_attempts: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+    networks:
+      - ben-network
+  ben-be-api:
+    container_name: ben-be-api
+    build:
+      context: ./
+      dockerfile: ./backend/Dockerfile-be-api
+    depends_on:
+      ben-db-postgres:
+        condition: service_healthy
+    environment:
+      TZ: "Europe/Bratislava"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 3s
+        max_attempts: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+    networks:
+      - ben-network
+  ben-db-postgres:
+    container_name: ben-db-postgres
+    image: postgres:13
+    volumes:
+      - ./env/db-postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./db-postgres-data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: ${DB_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${DB_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${DB_POSTGRES_DATABASE}
+      PGPORT: 5432
+      PGUSER: ${DB_POSTGRES_USER}
+      TZ: "Europe/Bratislava"
+    deploy:
+      restart_policy:
+        condition: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d ${DB_POSTGRES_DATABASE} -U ${DB_POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ben-network
+networks:
+  ben-network:
+    name: ben-network

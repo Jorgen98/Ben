@@ -1,0 +1,22 @@
+{
+  "name": "ben-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "be-fetch-start": "DB_POSTGRES_HOST='localhost' node -r dotenv/config be-fetch.js dotenv_config_path=../env/.env",
+    "be-fetch-docker": "DB_POSTGRES_HOST='ben-db-postgres' node -r dotenv/config be-fetch.js dotenv_config_path=.env",
+    "be-api-start": "API_KEY=false DB_POSTGRES_HOST='localhost' node -r dotenv/config be-api.js dotenv_config_path=../env/.env",
+    "be-api-docker": "API_KEY=true DB_POSTGRES_HOST='ben-db-postgres' node -r dotenv/config be-api.js dotenv_config_path=.env"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "node-cron": "^4.2.1",
+    "pg": "^8.16.3",
+    "ws": "^8.18.3"
+  }
+}
