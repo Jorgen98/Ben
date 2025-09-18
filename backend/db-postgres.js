@@ -93,7 +93,7 @@ async function removeOldData() {
 async function getData(objectId, lineId, from, to) {
     try {
         const result = await db_postgres.query(`
-            SELECT * FROM (SELECT * FROM records ORDER BY id) T WHERE id >= $1 AND line_id = $2 AND record_date BETWEEN $3 AND $4 LIMIT 10000`,
+            SELECT * FROM (SELECT * FROM records ORDER BY id) T WHERE id > $1 AND line_id = $2 AND record_date BETWEEN $3 AND $4 LIMIT 10000`,
             [objectId, lineId, from, to]
         );
         return result.rows;

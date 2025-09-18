@@ -49,7 +49,7 @@ async function verifyToken(req, res, next) {
             const lineId = req.query.line_id;
             const from = new Date(parseInt(req.query.from));
             const to = new Date(parseInt(req.query.to));
-            if (objectId && lineId && from && to) {
+            if ((objectId || objectId === 0) && lineId && from && to) {
                 res.send((await dbPostgres.getData(objectId, lineId, from, to)).map((record) => {
                     record.data.objectid = record.id; return record.data;
                 }))
