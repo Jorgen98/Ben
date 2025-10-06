@@ -8,7 +8,7 @@ const app = express();
 const cors = require('cors');
 
 const logService = require('./log.js');
-const dbPostgres = require('./db-postgres.js');
+const dbPostgis = require('./db-postgis.js');
 
 // .env file include
 dotenv.config();
@@ -21,7 +21,7 @@ function log(type, msg) {
 // CORS setup
 app.use(cors());
 
-// Function for API Token verification
+// Function for API Token verification and request handling
 async function verifyToken(req, res, next) {
     const token = process.env.BE_API_MODULE_TOKEN;
   
@@ -41,17 +41,19 @@ async function verifyToken(req, res, next) {
         }
     }
 
-    if (url.length < 1 || url[0] !== 'ben' || url[1] !== 'records') {
+    if (url.length < 1 || url[0] !== 'ben' || (url[1] !== 'delayRecords' && url[1] !== 'nextbike')) {
         res.send(false);
-    } else {
+    // Handle delay records API calls
+    } else if (url[0] === 'ben' && url[1] === 'delayRecords') {
         try {
             const objectId = parseInt(req.query.object_id);
             const lineId = req.query.line_id;
             const from = new Date(parseInt(req.query.from));
             const to = new Date(parseInt(req.query.to));
             if ((objectId || objectId === 0) && lineId && from && to) {
-                res.send((await dbPostgres.getData(objectId, lineId, from, to)).map((record) => {
-                    record.data.objectid = record.id; return record.data;
+                res.send((await dbPostgis.getDelayRecordsData(objectId, lineId, from, to)).map((record) => {
+                    record.data.objectid = record.id;
+                    return record.data;
                 }))
             } else {
                 res.send([]);
@@ -62,6 +64,40 @@ async function verifyToken(req, res, next) {
             res.send(false);
             return;
         }
+    // Handle nextBike API calls
+    } else if (url[0] === 'ben' && url[1] === 'nextbike') {
+        try {
+            let from = new Date(parseInt(req.query.from ?? 0));
+            let to = new Date(parseInt(req.query.to ?? 0));
+            let uid = parseInt(req.query.station_uid ?? null);
+            let position = JSON.parse(req.query.position);
+            let limit = JSON.parse(req.query.limit ?? null);
+
+            if (Math.abs(from - to) > 24 * 60 * 60 * 1000) {
+                to = new Date(from.valueOf() + 24 * 60 * 60 * 1000);
+            }
+
+            if (limit === null || limit > 10) {
+                limit = 10;
+            }
+
+            if (from && to && url[2] === 'places') {
+                res.send(await dbPostgis.getNextBikePlaces(from, to));
+            } else if (from && to && uid !== null && url[2] === 'records') {
+                res.send(await dbPostgis.getNextBikeRecords(uid, from, to));
+            } else if (from && to && position.length === 2 && url[2] === 'placesAround') {
+                res.send(await dbPostgis.getNextBikePlacesAround(position, from, to , limit));
+            } else {
+                res.send([]);
+            }
+            return;
+        } catch(err) {
+            log('error', err);
+            res.send(false);
+            return;
+        }
+    } else {
+        res.send(false);
     }
 }
 
@@ -72,7 +108,7 @@ let server = app.listen(7001, async () => {
 
 // Try to connect to DB
 server.on('listening', async () => {
-    if (await dbPostgres.connectToDB()) {
+    if (await dbPostgis.connectToDB()) {
         log('success', 'Connected to DB');
     } else {
         log('error', 'Error while establishing DB connection');

@@ -1,2 +1,2 @@
 development-dbs-only:
-	docker compose -f docker-compose-dev.yml --env-file ./env/.env up ben-db-postgres --build
+	docker compose -f docker-compose-dev.yml --env-file ./env/.env up ben-db-postgis --build

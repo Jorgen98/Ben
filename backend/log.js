@@ -23,8 +23,8 @@ const modules = [
         color: "\x1b[35m"
     },
     {
-        name: process.env.DB_POSTGRES_MODULE_NAME,
-        label: process.env.DB_POSTGRES_MODULE_LABEL,
+        name: process.env.DB_POSTGIS_MODULE_NAME,
+        label: process.env.DB_POSTGIS_MODULE_LABEL,
         color: "\x1b[36m"
     },
 ]

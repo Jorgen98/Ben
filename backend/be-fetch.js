@@ -9,7 +9,8 @@ const cron = require('node-cron');
 
 const logService = require('./log.js');
 const wsService = require('./websocket.js');
-const dbPostgres = require('./db-postgres.js');
+const dbPostgis = require('./db-postgis.js');
+const nextBikeService = require('./nextbike.js');
 
 // .env file include
 dotenv.config();
@@ -26,18 +27,23 @@ const server = app.listen(null, async () => {
 
 // Try to connect to DB
 server.on('listening', async () => {
-    if (await dbPostgres.connectToDB()) {
+    if (await dbPostgis.connectToDB()) {
         log('success', 'Connected to DB');
         wsService.createWs();
     } else {
         log('error', 'Error while establishing DB connection');
-    }
+    }await nextBikeService.getData();
 })
 
 // Regular job functions
 // Websocket reconnect job
 cron.schedule('0 * * * *', async () => {
     wsService.recreateWs();
-    await(dbPostgres.removeOldData());
-    log('info', `Actual number of record in db: ${await dbPostgres.actualRecordNum()}`);
+    await(dbPostgis.removeOldDelayRecordsData());
+    log('info', `Actual number of record in db: ${await dbPostgis.actualDelayRecordsNum()}`);
+});
+// Nextbike data fetch
+cron.schedule('*/10 * * * *', async () => {
+    await nextBikeService.getData();
+    log('info', "NextBike data has been saved");
 });
