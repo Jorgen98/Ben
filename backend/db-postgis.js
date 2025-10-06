@@ -173,7 +173,7 @@ async function getNextBikeRecords(uid, from, to) {
         return [];
     }
 }
-// Nastav endpoint na Lissy, checkni API kluc
+
 // Get next bike places around position
 async function getNextBikePlacesAround(position, from, to, limit) {
     try {
