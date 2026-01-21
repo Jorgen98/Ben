@@ -43,6 +43,41 @@ function createWs() {
         if (records.length > 1000) {
             let recordsToSave = JSON.parse(JSON.stringify(records));
             recordsToSave = recordsToSave.map((record) => {
+                // Mapping from new WSS
+                record['id'] = record['ID'];
+                delete record['ID'];
+                record['lf'] = record['LF'];
+                delete record['LF'];
+                delete record['IDC'];
+                delete record['IDB'];
+                record['lat'] = record['Lat'];
+                delete record['Lat'];
+                record['lng'] = record['Lng'];
+                delete record['Lng'];
+                record['delay'] = record['Delay'];
+                delete record['Delay'];
+                record['ltype'] = record['LType'];
+                delete record['LType'];
+                record['vtype'] = record['VType'];
+                delete record['VType'];
+                record['course'] = record['Course'];
+                delete record['Course'];
+                record['lineid'] = record['LineID'];
+                delete record['LineID'];
+                record['bearing'] = record['Bearing'];
+                delete record['Bearing'];
+                record['routeid'] = record['RouteID'];
+                delete record['RouteID'];
+                record['linename'] = record['LineName'];
+                delete record['LineName'];
+                record['isinactive'] = record['IsInactive'];
+                delete record['IsInactive'];
+                record['laststopid'] = record['LastStopID'];
+                delete record['LastStopID'];
+                record['finalstopid'] = record['FinalStopID'];
+                delete record['FinalStopID'];
+                record['lastupdate'] = record['TimeUpdated'];
+                delete record['TimeUpdated'];
                 return {
                     date: new Date(record.lastupdate),
                     lineid: record.lineid,
