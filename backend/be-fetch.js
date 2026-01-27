@@ -37,7 +37,7 @@ server.on('listening', async () => {
 
 // Regular job functions
 // Websocket reconnect job
-cron.schedule('39 * * * *', async () => {
+cron.schedule('0 * * * *', async () => {
     wsService.recreateWs();
     await(dbPostgis.removeOldDelayRecordsData());
     log('info', `Actual number of delay record in db: ${await dbPostgis.actualDelayRecordsNum()}`);
