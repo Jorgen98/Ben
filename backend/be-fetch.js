@@ -37,10 +37,11 @@ server.on('listening', async () => {
 
 // Regular job functions
 // Websocket reconnect job
-cron.schedule('0 * * * *', async () => {
+cron.schedule('39 * * * *', async () => {
     wsService.recreateWs();
     await(dbPostgis.removeOldDelayRecordsData());
-    log('info', `Actual number of record in db: ${await dbPostgis.actualDelayRecordsNum()}`);
+    log('info', `Actual number of delay record in db: ${await dbPostgis.actualDelayRecordsNum()}`);
+    log('info', `Actual number of nextbike record in db: ${await dbPostgis.actualNextBikeRecordsNum()}`);
 });
 // Nextbike data fetch
 cron.schedule('*/10 * * * *', async () => {

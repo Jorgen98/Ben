@@ -190,6 +190,17 @@ async function getNextBikePlacesAround(position, from, to, limit) {
     }
 }
 
+// Get actual delay records number
+async function actualNextBikeRecordsNum() {
+    try {
+        const count = await db_postgis.query(`SELECT COUNT(*) FROM nextbike;`);
+        return parseInt(count.rows[0].count);
+    } catch(error) {
+        log('error', error);
+        return 0;
+    }
+}
+
 module.exports = { connectToDB, actualDelayRecordsNum, insertDelayRecordsData,
     removeOldDelayRecordsData, getDelayRecordsData, insertNextBikeData,
-    getNextBikePlaces, getNextBikeRecords, getNextBikePlacesAround }
+    getNextBikePlaces, getNextBikeRecords, getNextBikePlacesAround, actualNextBikeRecordsNum }

@@ -73,8 +73,8 @@ async function verifyToken(req, res, next) {
             let position = JSON.parse(req.query.position ?? "[]");
             let limit = JSON.parse(req.query.limit ?? null);
 
-            if (Math.abs(from - to) > 24 * 60 * 60 * 1000) {
-                to = new Date(from.valueOf() + 24 * 60 * 60 * 1000);
+            if (Math.abs(from - to) > 2 * 24 * 60 * 60 * 1000) {
+                to = new Date(from.valueOf() + 2 * 24 * 60 * 60 * 1000);
             }
 
             if (limit === null || limit > 10) {

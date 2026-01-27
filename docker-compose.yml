@@ -61,8 +61,6 @@ services:
     volumes:
       - ./env/db-postgis-init.sql:/docker-entrypoint-initdb.d/init.sql
       - ./db-postgis-data:/var/lib/postgresql/data
-    ports:
-      - 5432:5432
     environment:
       POSTGRES_USER: ${DB_POSTGIS_USER}
       POSTGRES_PASSWORD: ${DB_POSTGIS_PASSWORD}
