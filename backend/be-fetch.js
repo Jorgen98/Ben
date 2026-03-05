@@ -11,6 +11,7 @@ const logService = require('./log.js');
 const wsService = require('./websocket.js');
 const dbPostgis = require('./db-postgis.js');
 const nextBikeService = require('./nextbike.js');
+const kordisService = require('./kordis.js');
 
 // .env file include
 dotenv.config();
@@ -29,16 +30,18 @@ const server = app.listen(null, async () => {
 server.on('listening', async () => {
     if (await dbPostgis.connectToDB()) {
         log('success', 'Connected to DB');
-        wsService.createWs();
+        //wsService.createWs();
+        await nextBikeService.getData();
+        await kordisService.createClient();
     } else {
         log('error', 'Error while establishing DB connection');
-    }await nextBikeService.getData();
+    }
 })
 
 // Regular job functions
 // Websocket reconnect job
 cron.schedule('0 * * * *', async () => {
-    wsService.recreateWs();
+    //wsService.recreateWs();
     await(dbPostgis.removeOldDelayRecordsData());
     log('info', `Actual number of delay record in db: ${await dbPostgis.actualDelayRecordsNum()}`);
     log('info', `Actual number of nextbike record in db: ${await dbPostgis.actualNextBikeRecordsNum()}`);
