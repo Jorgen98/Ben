@@ -43,8 +43,8 @@ server.on('listening', async () => {
 cron.schedule('0 * * * *', async () => {
     //wsService.recreateWs();
     await(dbPostgis.removeOldDelayRecordsData());
-    log('info', `Actual number of delay record in db: ${await dbPostgis.actualDelayRecordsNum()}`);
-    log('info', `Actual number of nextbike record in db: ${await dbPostgis.actualNextBikeRecordsNum()}`);
+    log('info', `Actual number of delay record in db: ${(await dbPostgis.actualDelayRecordsNum()).toLocaleString('cs-CZ')}`);
+    log('info', `Actual number of nextbike record in db: ${(await dbPostgis.actualNextBikeRecordsNum()).toLocaleString('cs-CZ')}`);
 });
 // Nextbike data fetch
 cron.schedule('*/10 * * * *', async () => {
