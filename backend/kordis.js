@@ -11,6 +11,7 @@ const dbPostgis = require('./db-postgis.js');
 const WSDL_URL = "http://kordis.idsjmk.cz:8000/Traffic/?wsdl";
 let client;
 let polling;
+let downloading = false;
 
 // .env file include
 dotenv.config();
@@ -47,10 +48,13 @@ function createClient() {
 // Download data from SOAP API
 async function downloadData() {
     polling = setInterval(async () => {
-        if (client !== undefined) {
+        if (client !== undefined && !downloading) {
+            
+            downloading = true;
             client.KORDISService.BasicHttpBinding_ITrafficState.GetTrafficState({}, async (err, result) => {
                 if (err) {
                     log('error', err);
+                    downloading = false;
                     return;
                 }
 
@@ -101,6 +105,8 @@ async function downloadData() {
                 })
 
                 await dbPostgis.insertDelayRecordsData(recordsToSave);
+                log('info', `${recordsToSave.length()} delay records has been saved`);
+                downloading = false;
             });
         }
     }, 10000);
