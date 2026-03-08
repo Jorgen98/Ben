@@ -105,7 +105,7 @@ async function downloadData() {
                 })
 
                 await dbPostgis.insertDelayRecordsData(recordsToSave);
-                log('info', `${recordsToSave.length()} delay records has been saved`);
+                log('info', `${recordsToSave} delay records has been saved`);
                 downloading = false;
             });
         }
