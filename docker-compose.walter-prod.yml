@@ -1,0 +1,9 @@
+services:
+  ben-proxy-server:
+    container_name: ben-proxy-server
+    networks:
+      - default-network
+networks:
+  default-network:
+    name: default-network
+    external: true
