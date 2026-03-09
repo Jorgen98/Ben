@@ -5,8 +5,6 @@ services:
     depends_on:
       ben-db-postgis:
         condition: service_healthy
-    ports:
-      - 80:80
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
     networks:
