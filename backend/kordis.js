@@ -10,8 +10,11 @@ const dbPostgis = require('./db-postgis.js');
 
 const WSDL_URL = "http://kordis.idsjmk.cz:8000/Traffic/?wsdl";
 let client;
-let polling;
+let pollingInterval;
+let logInterval;
 let downloading = false;
+let successAttempts = 0;
+let failedAttempts = 0;
 
 // .env file include
 dotenv.config();
@@ -24,10 +27,15 @@ function log(type, msg) {
 // Create SOAP client
 function createClient() {
     return new Promise((resolve) => {
-        if (polling) {
-            clearInterval(polling);
-            polling = null;
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
         }
+        if (logInterval) {
+            clearInterval(logInterval);
+            logInterval = null;
+        }
+
         soap.createClient(WSDL_URL, (err, soapClient) => {
             if (err) {
                 log('error', err);
@@ -41,13 +49,13 @@ function createClient() {
             downloadData();
 
             resolve(true);
-        });
+        })
     })
 }
 
 // Download data from SOAP API
 async function downloadData() {
-    polling = setInterval(async () => {
+    pollingInterval = setInterval(async () => {
         if (client !== undefined && !downloading) {
             
             downloading = true;
@@ -55,6 +63,7 @@ async function downloadData() {
                 if (err) {
                     log('error', err);
                     downloading = false;
+                    failedAttempts++;
                     return;
                 }
 
@@ -105,11 +114,15 @@ async function downloadData() {
                 })
 
                 await dbPostgis.insertDelayRecordsData(recordsToSave);
-                log('info', `${recordsToSave} delay records has been saved`);
+                successAttempts++;
                 downloading = false;
             });
         }
     }, 10000);
+
+    logInterval = setInterval(async () => {console.log(successAttempts, failedAttempts);
+        log('info', `Delay records success rate: ${Math.floor(successAttempts / (successAttempts + failedAttempts) * 100)}%`);
+    }, 60 * 6 * 10000);
 }
 
 module.exports = { createClient }
