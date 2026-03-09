@@ -120,7 +120,7 @@ async function downloadData() {
         }
     }, 10000);
 
-    logInterval = setInterval(async () => {console.log(successAttempts, failedAttempts);
+    logInterval = setInterval(async () => {
         log('info', `Delay records success rate: ${Math.floor(successAttempts / (successAttempts + failedAttempts) * 100)}%`);
     }, 60 * 6 * 10000);
 }

@@ -1,0 +1,3 @@
+services:
+  ben-proxy-server:
+    container_name: ben-proxy-server
