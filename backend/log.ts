@@ -2,7 +2,8 @@
  * Log service function file
  */
 
-const dotenv = require('dotenv');
+import dotenv from 'dotenv';
+import { logMsgType } from './types';
 
 // .env file include
 dotenv.config();
@@ -30,7 +31,7 @@ const modules = [
 ]
 
 // Function for writing intro log
-function write(sourceModuleName, type, message) {
+export function writeIntoLog(sourceModuleName: string | undefined, type: logMsgType, message: string) {
     const date = new Date();
 
     let terColor = defColor;
@@ -55,5 +56,3 @@ function write(sourceModuleName, type, message) {
 
     console.log(msgToDisplay);
 }
-
-module.exports = { write }
