@@ -67,7 +67,10 @@ async function downloadData() {
                     return;
                 }
 
-                let recordsToSave = JSON.parse(JSON.stringify(result.GetTrafficStateResult.ItemList['TrafficStateResp.Entry']));
+                let recordsToSave = [];
+                try {
+                    recordsToSave = JSON.parse(JSON.stringify(result.GetTrafficStateResult.ItemList['TrafficStateResp.Entry']));
+                } catch(error) {}
                 recordsToSave = recordsToSave.map((record) => {
                     // Data mapping
                     record['carnum'] = parseInt(record['CarNum']);
