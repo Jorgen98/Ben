@@ -3,10 +3,14 @@
  */
 
 import dotenv from 'dotenv';
-import { logMsgType } from './types';
+import { dataSourceStats, logMsgType } from './types';
+import { getRecordsNum, getStatistics, saveStatistics } from './db-postgis';
 
 // .env file include
 dotenv.config();
+
+// Fetch service stats object
+let stats: { [data_source: string]: dataSourceStats } = {};
 
 // Default terminal color
 const defColor = "\x1b[37m";
@@ -15,6 +19,11 @@ const defColor = "\x1b[37m";
 const modules = [
     {
         name: process.env.BE_FETCH_MODULE_NAME,
+        label: process.env.BE_FETCH_MODULE_LABEL,
+        color: "\x1b[33m"
+    },
+    {
+        name: process.env.BE_FETCH_MODULE_NEXTBIKE_NAME,
         label: process.env.BE_FETCH_MODULE_LABEL,
         color: "\x1b[33m"
     },
@@ -55,4 +64,39 @@ export function writeIntoLog(sourceModuleName: string | undefined, type: logMsgT
     }
 
     console.log(msgToDisplay);
+}
+
+// Function for fetch service working statistics save
+export async function saveStatistic(source: string, parameter: 'successFetches' | 'failedFetches' | 'downloadedRecords' | 'lastFetchedRecords', value: number, operation: 'add' | 'set') {
+    // Init new record statistics
+    if (!stats[source]) {
+        stats[source] = {
+            lastRecordTimeStamp: new Date(),
+            successFetches: 0,
+            failedFetches: 0,
+            downloadedRecords: 0,
+            lastFetchedRecords: 0,
+            databaseRecords: 0
+        }
+    }
+
+    if (operation === 'add') {
+        stats[source][parameter] += value;
+    } else {
+        stats[source][parameter] = value;
+    }
+
+    stats[source].lastRecordTimeStamp = new Date();
+}
+
+export async function saveStatisticsIntoDB(): Promise<void> {
+    let actualStatistics = (await getStatistics(1))[0]?.data ?? {};
+
+    for (const key in stats) {
+        actualStatistics[key] = stats[key];
+        actualStatistics[key]['databaseRecords'] = await getRecordsNum(key);
+    }
+
+    // Save statistics into DB
+    await saveStatistics(actualStatistics);
 }

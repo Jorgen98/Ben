@@ -6,7 +6,7 @@
 const Pool = require('pg').Pool;
 import dotenv from 'dotenv';
 
-import { logMsgType } from './types';
+import { dataSourceStats, dbRecordToSave, logMsgType } from './types';
 import { writeIntoLog } from './log';
 
 // .env file include
@@ -37,11 +37,86 @@ db_postgis.on('error', function(error: string) {
 // Function for DB connection create
 export async function connectToDB() {
     try {
-        let client = await db_postgis.connect();
+        const client = await db_postgis.connect();
         client.release(true);
         return true;
     } catch(error) {
         log('error', JSON.stringify(error));
         return false;
+    }
+}
+
+// Store records into DB
+export async function saveRecords(recordType: string, records: dbRecordToSave[]): Promise<boolean> {
+    if (records.length < 1) {
+        return true;
+    }
+
+    // Construct DB query
+    const queryValues: string[] = [];
+    const queryPlaceholders = records.map((record, index) => {
+        const base = index * 5;
+        queryValues.push(recordType, record.object_id.toString(), record.geometry.lat.toString(), record.geometry.lng.toString(), record.data);
+        return `(current_timestamp, $${base + 1}, $${base + 2}, ST_SetSRID(ST_MakePoint($${base + 3},$${base + 4}), 4326), $${base + 5}::jsonb)`;
+    }).join(',');
+    const query = `INSERT INTO records (timestamp, record_type, object_id, geometry, data) VALUES ${queryPlaceholders};`;
+
+    // Write records intro the query
+    try {
+        await db_postgis.query(query, queryValues);
+        return true;
+    } catch(error) {
+        log('error', error as string);
+        return false;
+    }
+}
+
+// Get records from DB
+export async function getRecords(recordType: string, dateStart: Date, dateEnd: Date, objectId: number | null,
+    recordUidStart: number | null, recordUidEnd: number | null, point: {lat: number, lng: number} | null, limit: number) {
+    try {
+        const records = await db_postgis.query(`SELECT * FROM (SELECT * FROM records WHERE record_type = $1 ORDER BY record_uid)
+            T WHERE timestamp BETWEEN $2 AND $3 LIMIT 10000;`, ['nextBike', dateStart, dateEnd]);
+
+        console.log(records.rows);
+        return [];
+    } catch(error) {
+        log('error', error as string);
+        return [];
+    }
+}
+
+// Store fetch service statistics into DB
+export async function saveStatistics(statistics: { [data_source: string]: dataSourceStats }): Promise<boolean> {
+    try {
+        await db_postgis.query(`INSERT INTO statistics (timestamp, data) VALUES (current_timestamp, $1);`, [statistics]);
+        return true;
+    } catch(error) {
+        log('error', error as string);
+        return false;
+    }
+}
+
+// Get statistics from DB
+export async function getStatistics(limit: number = Infinity): Promise<{uid: number, timestamp: Date, data: { [data_source: string]: dataSourceStats }}[]> {
+    try {
+        if (limit === Infinity) {
+            return (await db_postgis.query(`SELECT * FROM statistics ORDER BY uid DESC;`))?.rows ?? [];
+        } else {
+            return (await db_postgis.query(`SELECT * FROM statistics ORDER BY uid DESC LIMIT $1;`, [limit]))?.rows ?? [];
+        }
+    } catch(error) {
+        log('error', error as string);
+        return [];
+    }
+}
+
+// Count actual number of records in DB
+export async function getRecordsNum(recordType: string): Promise<number> {
+    try {
+        return (parseInt((await db_postgis.query(`SELECT COUNT(*) FROM records WHERE record_type = $1;`, [recordType]))?.rows[0]?.count)) ?? 0;
+    } catch(error) {
+        log('error', error as string);
+        return 0;
     }
 }

@@ -1,6 +1,18 @@
-CREATE EXTENSION IF NOT EXISTS postgis CASCADE;
-CREATE TABLE IF NOT EXISTS delay_records (id SERIAL PRIMARY KEY, record_date TIMESTAMPTZ NOT NULL, line_id INT NOT NULL, data JSONB NOT NULL);
-CREATE INDEX delay_idx ON delay_records (id, record_date);
+CREATE TABLE IF NOT EXISTS records (record_type TEXT NOT NULL, record_uid INT NOT NULL, object_id INT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL, geometry GEOMETRY, data JSONB NOT NULL, PRIMARY KEY (record_type, record_uid));
+CREATE INDEX idx_records ON records (record_type);
+CREATE INDEX idx_geometry ON records USING GIST (geometry);
 
-CREATE TABLE IF NOT EXISTS nextbike (id SERIAL PRIMARY KEY, station_uid INT NOT NULL, record_date TIMESTAMPTZ NOT NULL, geom GEOMETRY, data JSONB NOT NULL);
-CREATE INDEX nextbike_idx ON nextbike (station_uid, record_date);
+CREATE OR REPLACE FUNCTION set_record_uid_per_type() RETURNS trigger AS $$
+DECLARE
+  seq text;
+BEGIN
+    seq := 'seq_' || NEW.record_type;
+    EXECUTE format('CREATE SEQUENCE IF NOT EXISTS %I.%I', 'public', seq);
+    NEW.record_uid := nextval(format('%I.%I', 'public', seq));
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_set_record_uid BEFORE INSERT ON records FOR EACH ROW EXECUTE FUNCTION set_record_uid_per_type();
+
+CREATE TABLE IF NOT EXISTS statistics (uid SERIAL PRIMARY KEY, timestamp TIMESTAMPTZ NOT NULL, data JSONB NOT NULL);

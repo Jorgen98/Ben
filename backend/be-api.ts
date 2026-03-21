@@ -12,7 +12,7 @@ const requireAPIKey = JSON.parse(process.env.API_KEY ?? 'true');
 
 import { writeIntoLog } from './log';
 import { logMsgType } from './types';
-import { connectToDB } from './db-postgis';
+import { connectToDB, getRecords, getStatistics } from './db-postgis';
 
 // .env file include
 dotenv.config();
@@ -31,15 +31,18 @@ async function verifyToken(req: Request, res: Response, next: NextFunction) {
   
     if (requireAPIKey === 'true' && req.headers['authorization'] !== token) {
         log('info', 'Attempt with false API Token verification');
-        res.send(false);
+        res.status(401);
+        res.send();
         return;
     }
 
-    res.send(true);
+    // Remove API prefix
+    req.url = req.url.slice(4);
+    next();
 }
 
 // Try to run processing service
-let server = app.listen(7001, async () => {console.log(requireAPIKey)
+let server = app.listen(7001, async () => {
     log('success', 'API service is running');
 })
 
@@ -54,3 +57,145 @@ server.on('listening', async () => {
 
 // API Token activation
 app.use(verifyToken);
+
+// API endpoints
+
+// Ben Fetch service stats
+app.get('/stats', async (req, res) => {
+    const stats = ((await getStatistics(1))[0] ?? {}) as any;
+    delete stats.uid;
+
+    res.status(200);
+    res.send(stats);
+})
+
+// NextBike records
+app.get('/records/:endpoint', async (req, res) => {
+    let dateStart: Date, dateEnd: Date, objectId: number | null,
+        recordUidStart: number | null, recordUidEnd: number | null,
+        point: {lat: number, lng: number} | null, limit: number;
+
+    if (!req.params.endpoint) {
+        res.status(400);
+        res.send();
+    }
+
+    // Process query parameters
+    // Date period start
+    if (req.query.dateFrom) {
+        try {
+            dateStart = new Date(req.query.dateFrom as string);
+        } catch(error) {
+            dateStart = new Date(0);
+        }
+        if (isNaN(dateStart.valueOf())) {
+            dateStart = new Date(0);
+        }
+    } else {
+        dateStart = new Date(0);
+    }
+
+    // Date period end
+    if (req.query.dateTo) {
+        try {
+            dateEnd = new Date(req.query.dateTo as string);
+        } catch(error) {
+            dateEnd = new Date();
+        }
+        if (isNaN(dateEnd.valueOf())) {
+            dateEnd = new Date();
+        }
+    } else {
+        dateEnd = new Date();
+    }
+
+    // Record object id
+    if (req.query.objectId) {
+        try {
+            objectId = parseInt(req.query.objectId as string);
+        } catch(error) {
+            objectId = null;
+        }
+        if (isNaN(objectId as number)) {
+            objectId = null;
+        }
+    } else {
+        objectId = null;
+    }
+    
+    // Record UID start
+    if (req.query.uidFrom) {
+        try {
+            recordUidStart = parseInt(req.query.uidFrom as string);
+        } catch(error) {
+            recordUidStart = null;
+        }
+        if (isNaN(recordUidStart as number)) {
+            recordUidStart = null;
+        }
+    } else {
+        recordUidStart = null;
+    }
+
+    // Record UID end
+    if (req.query.uidTo) {
+        try {
+            recordUidEnd = parseInt(req.query.uidTo as string);
+        } catch(error) {
+            recordUidEnd = null;
+        }
+        if (isNaN(recordUidEnd as number)) {
+            recordUidEnd = null;
+        }
+    } else {
+        recordUidEnd = null;
+    }
+
+    // Geographical coords
+    if (req.query.point) {
+        try {
+            point = JSON.parse(req.query.point as string);
+        } catch(error) {
+            point = null;
+        }
+        if (point?.lat && point?.lng) {
+            try {
+                const lat = parseFloat(point.lat.toString());
+                const lng = parseFloat(point.lat.toString());
+
+                if (isNaN(lat) || isNaN(lng)) {
+                    point = null;
+                }
+            } catch(error) {
+                point = null;
+            }
+        } else {
+            point = null;
+        }
+    } else {
+        point = null;
+    }
+
+    // Records count limit
+    if (req.query.limit) {
+        try {
+            limit = parseInt(req.query.limit as string);
+            if (isNaN(limit)) {
+                limit = 20000;
+            }
+            limit = Math.abs(limit);
+
+            // On one request can be returned only 20000 records
+            if (limit > 20000) {
+                limit = 20000;
+            }
+        } catch(error) {
+            limit = 20000;
+        }
+    } else {
+        limit = 20000;
+    }
+
+    res.status(200);
+    res.send(await getRecords(req.params.endpoint, dateStart, dateEnd, objectId, recordUidStart, recordUidEnd, point, limit));
+})
