@@ -27,7 +27,17 @@ const modules = [
     },
     {
         name: process.env.BE_FETCH_MODULE_NEXTBIKE_NAME,
-        label: process.env.BE_FETCH_MODULE_LABEL,
+        label: process.env.BE_FETCH_MODULE_NEXTBIKE_NAME,
+        color: "\x1b[33m"
+    },
+    {
+        name: process.env.BE_FETCH_MODULE_OPENWEATHER_NAME,
+        label: process.env.BE_FETCH_MODULE_OPENWEATHER_NAME,
+        color: "\x1b[33m"
+    },
+    {
+        name: process.env.BE_FETCH_MODULE_KORDIS_NAME,
+        label: process.env.BE_FETCH_MODULE_KORDIS_NAME,
         color: "\x1b[33m"
     },
     {

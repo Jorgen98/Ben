@@ -13,6 +13,8 @@ import { saveStatisticsIntoDB, writeIntoLog } from './log';
 import { logMsgType } from './types';
 import { connectToDB } from './db-postgis';
 import { startFetchingAndStoringNextBikeData, stopFetchingNextBikeData } from './data-sources/nextbike';
+import { startFetchingAndStoringOpenWeatherData, stopFetchingOpenWeatherData } from './data-sources/openweather';
+import { startFetchingAndStoringKordisData, stopFetchingKordisData } from './data-sources/kordis';
 
 // .env file include
 dotenv.config();
@@ -38,6 +40,11 @@ server.on('listening', async () => {
 
     // Start fetching NextBike records
     await startFetchingAndStoringNextBikeData();
+    // Start fetching Open weather records
+    await startFetchingAndStoringOpenWeatherData();
+    // Start fetching Kordis records
+    await startFetchingAndStoringKordisData();
+    // Store fetch statistics
     await saveStatisticsIntoDB();
 })
 
@@ -49,4 +56,6 @@ cron.schedule('*/10 * * * *', async () => {
 // On server shutdown
 server.on('close', () => {
     stopFetchingNextBikeData();
+    stopFetchingOpenWeatherData();
+    stopFetchingKordisData();
 })

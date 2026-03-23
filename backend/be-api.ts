@@ -81,7 +81,7 @@ app.get('/stats', async (req, res) => {
 
 // NextBike records
 app.get('/records/:endpoint', async (req, res) => {
-    let dateStart: Date, dateEnd: Date, objectId: number | null,
+    let dateStart: Date, dateEnd: Date, key: string | null,
         recordUidStart: number | null, recordUidEnd: number | null,
         point: {lat: number, lng: number} | null, limit: number,
         fields: string[];
@@ -121,17 +121,14 @@ app.get('/records/:endpoint', async (req, res) => {
     }
 
     // Record object id
-    if (req.query.objectId) {
-        try {
-            objectId = parseInt(req.query.objectId as string);
-        } catch(error) {
-            objectId = null;
-        }
-        if (isNaN(objectId as number)) {
-            objectId = null;
+    if (req.query.key) {
+        if (req.query.key === '') {
+            key = null;
+        } else {
+            key = req.query.key as string;
         }
     } else {
-        objectId = null;
+        key = null;
     }
     
     // Record UID start
@@ -219,10 +216,10 @@ app.get('/records/:endpoint', async (req, res) => {
     }
 
     res.status(200);
-    res.send(await getRecords(req.params.endpoint, dateStart, dateEnd, objectId, recordUidStart, recordUidEnd, point, limit, fields));
+    res.send(await getRecords(req.params.endpoint, dateStart, dateEnd, key, recordUidStart, recordUidEnd, point, limit, fields));
 })
 
 // Print API key usage intro console
-cron.schedule('*/60 * * * *', async () => {
+cron.schedule('0 * * * *', async () => {
     printAPIKeysUsage()
 });

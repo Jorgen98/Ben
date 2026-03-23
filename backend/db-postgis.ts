@@ -34,7 +34,7 @@ db_postgis.on('error', function(error: string) {
     log('error', error);
 })
 
-// Function for DB connection create
+// Function for DB connection creation
 export async function connectToDB() {
     try {
         const client = await db_postgis.connect();
@@ -56,12 +56,12 @@ export async function saveRecords(recordType: string, records: dbRecordToSave[])
     const queryValues: string[] = [];
     const queryPlaceholders = records.map((record, index) => {
         const base = index * 5;
-        queryValues.push(recordType, record.object_id.toString(), record.geometry.lat.toString(), record.geometry.lng.toString(), record.data);
+        queryValues.push(recordType, record.key, record.geometry.lat.toString(), record.geometry.lng.toString(), record.data);
         return `(current_timestamp, $${base + 1}, $${base + 2}, ST_SetSRID(ST_MakePoint($${base + 3},$${base + 4}), 4326), $${base + 5}::jsonb)`;
     }).join(',');
-    const query = `INSERT INTO records (timestamp, record_type, object_id, geometry, data) VALUES ${queryPlaceholders};`;
+    const query = `INSERT INTO records (timestamp, record_type, key, geometry, data) VALUES ${queryPlaceholders};`;
 
-    // Write records intro the query
+    // Store records
     try {
         await db_postgis.query(query, queryValues);
         return true;
@@ -72,16 +72,16 @@ export async function saveRecords(recordType: string, records: dbRecordToSave[])
 }
 
 // Get records from DB
-export async function getRecords(recordType: string, dateStart: Date, dateEnd: Date, objectId: number | null,
+export async function getRecords(recordType: string, dateStart: Date, dateEnd: Date, key: string | null,
     recordUidStart: number | null, recordUidEnd: number | null, point: {lat: number, lng: number} | null, limit: number, fields: string[]) {
     try {
         let query = `SELECT * FROM (SELECT * FROM records WHERE record_type = $1 ORDER BY record_uid)
             T WHERE timestamp BETWEEN $2 AND $3`;
         let queryValues: (string | number | Date)[] = [recordType, dateStart, dateEnd];
 
-        if (objectId !== null) {
-            queryValues.push(objectId);
-            query += ` AND object_id = $${queryValues.length}`;
+        if (key !== null) {
+            queryValues.push(key);
+            query += ` AND key = $${queryValues.length}`;
         }
 
         if (recordUidStart !== null) {
@@ -111,8 +111,9 @@ export async function getRecords(recordType: string, dateStart: Date, dateEnd: D
             record.data['ben'] = {
                 timestamp: record.timestamp,
                 record_uid: record.record_uid,
+                key: record.key
             }
-            delete record.record_type, record.timestamp, record.record_uid, record.object_id, record.geometry;
+            delete record.record_type, record.timestamp, record.record_uid, record.key, record.geometry;
 
             return record.data;
         });

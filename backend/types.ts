@@ -7,7 +7,7 @@ export type logMsgType = 'success' | 'warning' | 'error' | 'info';
 
 // DB record object
 export type dbRecordToSave = {
-    object_id: number,
+    key: string,
     geometry: {lat: number, lng: number}
     data: string
 };

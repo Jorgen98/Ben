@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS records (record_type TEXT NOT NULL, record_uid INT NOT NULL, object_id INT NOT NULL,
+CREATE TABLE IF NOT EXISTS records (record_type TEXT NOT NULL, record_uid INT NOT NULL, key TEXT NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL, geometry GEOMETRY, data JSONB NOT NULL, PRIMARY KEY (record_type, record_uid));
 CREATE INDEX idx_records ON records (record_type);
 CREATE INDEX idx_geometry ON records USING GIST (geometry);

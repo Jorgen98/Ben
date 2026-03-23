@@ -1,5 +1,5 @@
 /*
- * NextBike data source handling
+ * OpenWeather data source handling
  */
 
 import dotenv from 'dotenv';
@@ -12,34 +12,36 @@ import { saveRecords } from '../db-postgis';
 // Module variables
 let fetchInterval: NodeJS.Timeout | null = null;
 let downloading: boolean = false;
-const nextBikeStatsName = 'nextBike';
+const openWeatherStatsName = 'openWeather';
+const apiToken = process.env.BE_FETCH_MODULE_OPENWEATHER_TOKEN;
+const positions: {name: string, lat: number, lng: number}[] = JSON.parse(process.env.BE_FETCH_MODULE_OPENWEATHER_PLACES as string ?? '[]');
 
 // .env file include
 dotenv.config();
 
 // Help function for log writing
 function log(type: logMsgType, msg: string) {
-    writeIntoLog(process.env.BE_FETCH_MODULE_NEXTBIKE_NAME, type, msg)
+    writeIntoLog(process.env.BE_FETCH_MODULE_OPENWEATHER_NAME, type, msg)
 }
 
-// Get data and store them intro DB in 5 minutes interval
-export async function startFetchingAndStoringNextBikeData(): Promise<void> {
+// Get data and store them intro DB in 10 minutes interval
+export async function startFetchingAndStoringOpenWeatherData(): Promise<void> {
     // First test attempt
-    if (!(await getAndProcessData())) {
-        log('error', 'Failed to start download NextBike data');
+    if (!(await getAndProcessData()) || !apiToken || positions.length < 1) {
+        log('error', 'Failed to start download OpenWeather data');
         return;
     }
 
-    log('success', 'NextBike fetch is running');
+    log('success', 'OpenWeather fetch is running');
     
     // Set regular downloading
     fetchInterval = setInterval(async () => {
         await getAndProcessData();
-    }, 5 * 60 * 1000);
+    }, 10 * 60 * 1000);
 }
 
 // Stop fetching data
-export function stopFetchingNextBikeData(): void {
+export function stopFetchingOpenWeatherData(): void {
     if (fetchInterval !== null) {
         clearInterval(fetchInterval);
         fetchInterval = null;
@@ -51,50 +53,56 @@ async function getAndProcessData(): Promise<boolean> {
     if (!downloading) {
         downloading = true;
         // Get data
-        const inputRecords = await downloadData(0);
+        const inputRecords = {success: false, records: []};
+        for (const [idx, position] of positions.entries()) {
+            if (position.lat && position.lng) {
+                let positionRecords = await downloadData(0, idx, position.lat, position.lng);
+                inputRecords.records = inputRecords.records.concat(positionRecords.records as any);
+                inputRecords.success = positionRecords.success;
+            }
+        }
 
         // If the fetching of records was successful, store records into DB
         if (inputRecords.success) {
-            saveStatistic(nextBikeStatsName, 'successFetches', 1, 'add');
+            saveStatistic(openWeatherStatsName, 'successFetches', 1, 'add');
 
             // Prepare records
             const recordsToSave: dbRecordToSave[] = inputRecords.records
             // Remove damaged records
-            .filter((record) => {
+            .filter((record: any) => {
                 try {
-                    return typeof(parseInt(record.uid)) === 'number' &&
-                        typeof(parseFloat(record.lat)) === 'number' &&
-                        typeof(parseFloat(record.lng)) === 'number' &&
+                    return typeof(parseFloat(record.data.coord.lat)) === 'number' &&
+                        typeof(parseFloat(record.data.coord.lon)) === 'number' &&
                         JSON.stringify(record);
                 } catch (error) {
                     return false;
                 };
             })
             // Remap records
-            .map((record) => {
+            .map((record: any) => {
                 return {
-                    // As general key is set station ID
-                    key: record.uid.toString(),
-                    // Station geometry
+                    // As general key is set position of measurement
+                    key: record.positionId.toString(),
+                    // Position geometry
                     geometry: {
-                        lat: parseFloat(record.lat),
-                        lng: parseFloat(record.lng)
+                        lat: parseFloat(record.data.coord.lat),
+                        lng: parseFloat(record.data.coord.lon)
                     },
                     // Record itself
-                    data: JSON.stringify(record)
+                    data: JSON.stringify(record.data)
                 }
             });
 
             // Store records into DB
-            const dbSavingState = await saveRecords(nextBikeStatsName, recordsToSave);
-            saveStatistic(nextBikeStatsName, 'downloadedRecords', inputRecords.records.length, 'add');
-            saveStatistic(nextBikeStatsName, 'lastFetchedRecords', inputRecords.records.length, 'set');
+            const dbSavingState = await saveRecords(openWeatherStatsName, recordsToSave);
+            saveStatistic(openWeatherStatsName, 'downloadedRecords', inputRecords.records.length, 'add');
+            saveStatistic(openWeatherStatsName, 'lastFetchedRecords', inputRecords.records.length, 'set');
             downloading = false;
 
             return dbSavingState;
         // There was records downloading error
         } else {
-            saveStatistic(nextBikeStatsName, 'failedFetches', 1, 'add');
+            saveStatistic(openWeatherStatsName, 'failedFetches', 1, 'add');
             downloading = false;
             return false;
         }
@@ -103,15 +111,15 @@ async function getAndProcessData(): Promise<boolean> {
     }
 }
 
-// Download records from NextBike source
-async function downloadData(downloadAttempt: number): Promise <{records: any[], success: boolean}> {
+// Download records from OpenWeather source
+async function downloadData(downloadAttempt: number, positionId: number, lat: number, lng: number): Promise <{records: {positionId: number, data: any}[], success: boolean}> {
     return new Promise(async (resolve) => {
         // HTTPS request
         https
         // On success data download
         .get({
-            hostname: "api.nextbike.net",
-            path: "/maps/nextbike-live.json?city=660",
+            hostname: "api.openweathermap.org",
+            path: `/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${apiToken}`
         }, async res => {
             const { statusCode } = res;
             const contentType = res.headers['content-type'];
@@ -138,16 +146,7 @@ async function downloadData(downloadAttempt: number): Promise <{records: any[], 
             res.on('end', async () => {
                 try {
                     const parsedData = JSON.parse(rawData);
-
-                    // Check if we get exactly Brno Data
-                    if (parsedData === undefined || parsedData.countries === undefined ||
-                        parsedData.countries.length != 1 || parsedData.countries[0].cities === undefined ||
-                        parsedData.countries[0].cities.length != 1 || parsedData.countries[0].cities[0].places === undefined ||
-                        parsedData.countries[0].cities[0].places.length < 1) {
-                        resolve({records: [], success: false});
-                    } else {
-                        resolve({records: parsedData.countries[0].cities[0].places, success: true});
-                    }
+                    resolve({records: [{positionId: positionId, data: parsedData}], success: true});
                 } catch (e) {
                     resolve({records: [], success: false});
                 }
@@ -159,7 +158,7 @@ async function downloadData(downloadAttempt: number): Promise <{records: any[], 
 
             // On one session, there is 5 attempts to download data
             if (downloadAttempt < 5) {
-                resolve(await downloadData(downloadAttempt + 1));
+                resolve(await downloadData(downloadAttempt + 1, positionId, lat, lng));
             } else {
                 resolve({records: [], success: false});
             }
