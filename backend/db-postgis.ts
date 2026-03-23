@@ -20,7 +20,7 @@ function log(type: logMsgType, msg: string) {
 // Postgis DB instant
 const db_postgis = new Pool({
     user: process.env.DB_POSTGIS_USER,
-    host: process.env.DB_POSTGIS_HOST ?? 'ben-db-postgis',
+    host: process.env.DB_POSTGIS_HOST ?? 'new-ben-db-postgis',
     database: process.env.DB_POSTGIS_DATABASE,
     password: process.env.DB_POSTGIS_PASSWORD,
     port: 5432,
@@ -73,13 +73,67 @@ export async function saveRecords(recordType: string, records: dbRecordToSave[])
 
 // Get records from DB
 export async function getRecords(recordType: string, dateStart: Date, dateEnd: Date, objectId: number | null,
-    recordUidStart: number | null, recordUidEnd: number | null, point: {lat: number, lng: number} | null, limit: number) {
+    recordUidStart: number | null, recordUidEnd: number | null, point: {lat: number, lng: number} | null, limit: number, fields: string[]) {
     try {
-        const records = await db_postgis.query(`SELECT * FROM (SELECT * FROM records WHERE record_type = $1 ORDER BY record_uid)
-            T WHERE timestamp BETWEEN $2 AND $3 LIMIT 10000;`, ['nextBike', dateStart, dateEnd]);
+        let query = `SELECT * FROM (SELECT * FROM records WHERE record_type = $1 ORDER BY record_uid)
+            T WHERE timestamp BETWEEN $2 AND $3`;
+        let queryValues: (string | number | Date)[] = [recordType, dateStart, dateEnd];
 
-        console.log(records.rows);
-        return [];
+        if (objectId !== null) {
+            queryValues.push(objectId);
+            query += ` AND object_id = $${queryValues.length}`;
+        }
+
+        if (recordUidStart !== null) {
+            queryValues.push(recordUidStart);
+            query += ` AND record_uid >= $${queryValues.length}`;
+        }
+
+        if (recordUidEnd !== null) {
+            queryValues.push(recordUidEnd);
+            query += ` AND record_uid <= $${queryValues.length}`;
+        }
+
+        if (point !== null) {
+            queryValues.push(point.lat);
+            queryValues.push(point.lng);
+            query += ` ORDER BY ST_DistanceSphere(geometry, ST_MakePoint($${queryValues.length - 1}, $${queryValues.length}))`;
+        }
+
+        queryValues.push(limit);
+        query += ` LIMIT $${queryValues.length}`;
+
+        // Get records from DB
+        let records = await db_postgis.query(query, queryValues);
+
+        // Prepare records before sending to client
+        records = records.rows.map((record: {[key: string]: any}) => {
+            record.data['ben'] = {
+                timestamp: record.timestamp,
+                record_uid: record.record_uid,
+            }
+            delete record.record_type, record.timestamp, record.record_uid, record.object_id, record.geometry;
+
+            return record.data;
+        });
+
+        // Return only required record fields if selected
+        if (fields.length > 0) {
+            records = records
+            .map((record: {[key: string]: any}) => {
+                let newRecord: {[key: string]: any} = {};
+                for (const key of fields) {
+                    if (record[key] || record[key] === 0) {
+                        newRecord[key] = record[key];
+                    }
+                }
+
+                return newRecord;
+            })
+            // And remove empty objects
+            .filter((record: {[key: string]: any}) => { return Object.keys(record).length > 0 });
+        }
+        return records;
     } catch(error) {
         log('error', error as string);
         return [];

@@ -1,6 +1,6 @@
 services:
-  ben-proxy-server:
-    container_name: ben-proxy-server
+  new-ben-proxy-server:
+    container_name: new-ben-proxy-server
     networks:
       - default-network
 networks:

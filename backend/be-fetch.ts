@@ -42,7 +42,7 @@ server.on('listening', async () => {
 })
 
 // Save fetch statistics
-cron.schedule('*/1 * * * *', async () => {
+cron.schedule('*/10 * * * *', async () => {
     await saveStatisticsIntoDB();
 });
 

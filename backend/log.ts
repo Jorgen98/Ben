@@ -11,6 +11,9 @@ dotenv.config();
 
 // Fetch service stats object
 let stats: { [data_source: string]: dataSourceStats } = {};
+// Usage of API keys stats
+const apiKeysStatsLabel = "apiKeysUsage";
+let apiKeysStats: { [key: string]: number } = {};
 
 // Default terminal color
 const defColor = "\x1b[37m";
@@ -89,6 +92,21 @@ export async function saveStatistic(source: string, parameter: 'successFetches' 
     stats[source].lastRecordTimeStamp = new Date();
 }
 
+// Function for API key usage record
+export function newAPIUsage(apiKeyIdx: string) {
+    if (!apiKeysStats[apiKeyIdx]) {
+        apiKeysStats[apiKeyIdx] = 1;
+    } else {
+        apiKeysStats[apiKeyIdx] += 1;
+    }
+}
+
+// Put API key usage intro console
+export function printAPIKeysUsage() {
+    writeIntoLog(process.env.BE_API_MODULE_NAME, 'info', `Usage of API keys: ${JSON.stringify(apiKeysStats, null, 4)}`);
+}
+
+// Function for creating new stats snapshot in DB
 export async function saveStatisticsIntoDB(): Promise<void> {
     let actualStatistics = (await getStatistics(1))[0]?.data ?? {};
 

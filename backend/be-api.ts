@@ -6,11 +6,12 @@
 import express, { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import cron from 'node-cron';
 
 const app = express();
 const requireAPIKey = JSON.parse(process.env.API_KEY ?? 'true');
 
-import { writeIntoLog } from './log';
+import { newAPIUsage, printAPIKeysUsage, writeIntoLog } from './log';
 import { logMsgType } from './types';
 import { connectToDB, getRecords, getStatistics } from './db-postgis';
 
@@ -27,17 +28,26 @@ app.use(cors());
 
 // Function for API Token verification and request handling
 async function verifyToken(req: Request, res: Response, next: NextFunction) {
-    const token = process.env.BE_API_MODULE_TOKEN;
-  
-    if (requireAPIKey === 'true' && req.headers['authorization'] !== token) {
-        log('info', 'Attempt with false API Token verification');
-        res.status(401);
-        res.send();
-        return;
+    let tokens: string[] = [];
+    try {
+        tokens = JSON.parse((process.env.BE_API_MODULE_TOKENS ?? []) as string);
+    } catch(error) {}
+
+    if (requireAPIKey) {
+        const tokenIdx = tokens.findIndex((token: string) => { return token === req.headers['authorization']});
+
+        if (tokenIdx === -1) {
+            log('info', 'Attempt with false API Token verification');
+            res.status(401);
+            res.send();
+            return;
+        } else {
+            newAPIUsage(tokenIdx.toString());
+        }
     }
 
     // Remove API prefix
-    req.url = req.url.slice(4);
+    req.url = req.url.slice(8);
     next();
 }
 
@@ -73,7 +83,8 @@ app.get('/stats', async (req, res) => {
 app.get('/records/:endpoint', async (req, res) => {
     let dateStart: Date, dateEnd: Date, objectId: number | null,
         recordUidStart: number | null, recordUidEnd: number | null,
-        point: {lat: number, lng: number} | null, limit: number;
+        point: {lat: number, lng: number} | null, limit: number,
+        fields: string[];
 
     if (!req.params.endpoint) {
         res.status(400);
@@ -196,6 +207,22 @@ app.get('/records/:endpoint', async (req, res) => {
         limit = 20000;
     }
 
+    // Records require fields
+    if (req.query.fields) {
+        try {
+            fields = JSON.parse(req.query.fields as string);
+        } catch(error) {
+            fields = [];
+        }
+    } else {
+        fields = [];
+    }
+
     res.status(200);
-    res.send(await getRecords(req.params.endpoint, dateStart, dateEnd, objectId, recordUidStart, recordUidEnd, point, limit));
+    res.send(await getRecords(req.params.endpoint, dateStart, dateEnd, objectId, recordUidStart, recordUidEnd, point, limit, fields));
 })
+
+// Print API key usage intro console
+cron.schedule('*/60 * * * *', async () => {
+    printAPIKeysUsage()
+});
