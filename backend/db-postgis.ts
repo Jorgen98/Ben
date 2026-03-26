@@ -75,9 +75,8 @@ export async function saveRecords(recordType: string, records: dbRecordToSave[])
 export async function getRecords(recordType: string, dateStart: Date, dateEnd: Date, key: string | null,
     recordUidStart: number | null, recordUidEnd: number | null, point: {lat: number, lng: number} | null, limit: number, fields: string[]) {
     try {
-        let query = `SELECT * FROM (SELECT * FROM records WHERE record_type = $1 ORDER BY record_uid)
-            T WHERE timestamp BETWEEN $2 AND $3`;
-        let queryValues: (string | number | Date)[] = [recordType, dateStart, dateEnd];
+        let query = `SELECT * FROM (SELECT * FROM records WHERE record_type = $1`;
+        let queryValues: (string | number | Date)[] = [recordType];
 
         if (key !== null) {
             queryValues.push(key);
@@ -99,6 +98,9 @@ export async function getRecords(recordType: string, dateStart: Date, dateEnd: D
             queryValues.push(point.lng);
             query += ` ORDER BY ST_DistanceSphere(geometry, ST_MakePoint($${queryValues.length - 1}, $${queryValues.length}))`;
         }
+
+        queryValues.push(dateStart, dateEnd);
+        query += `) T WHERE timestamp BETWEEN $${queryValues.length - 1} AND $${queryValues.length}`;
 
         queryValues.push(limit);
         query += ` LIMIT $${queryValues.length}`;
