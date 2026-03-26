@@ -10,6 +10,7 @@ import cron from 'node-cron';
 
 const app = express();
 const requireAPIKey = JSON.parse(process.env.API_KEY ?? 'true');
+const maxNumberOfRecords = 50000;
 
 import { newAPIUsage, printAPIKeysUsage, writeIntoLog } from './log';
 import { logMsgType } from './types';
@@ -189,19 +190,19 @@ app.get('/records/:endpoint', async (req, res) => {
         try {
             limit = parseInt(req.query.limit as string);
             if (isNaN(limit)) {
-                limit = 20000;
+                limit = maxNumberOfRecords;
             }
             limit = Math.abs(limit);
 
-            // On one request can be returned only 20000 records
-            if (limit > 20000) {
-                limit = 20000;
+            // On one request can be returned only default max num of records
+            if (limit > maxNumberOfRecords) {
+                limit = maxNumberOfRecords;
             }
         } catch(error) {
-            limit = 20000;
+            limit = maxNumberOfRecords;
         }
     } else {
-        limit = 20000;
+        limit = maxNumberOfRecords;
     }
 
     // Records require fields
