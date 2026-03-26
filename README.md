@@ -47,7 +47,9 @@ The **KORDIS Vehicle Positions** collect data from the internal KORDIS DB. Every
 `Fetching time: Every 10 minutes`
 
 The **OpenWeather API endpoint** refers to the web service interface provided by OpenWeather. It consists information such as:
+
 - Current weather conditions (temperature, wind, humidity, etc.)
+
 Every record is simple JSON, which represent state of one measurement position in particular time.
 
 ### General record query params
