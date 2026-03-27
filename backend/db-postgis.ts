@@ -75,7 +75,7 @@ export async function saveRecords(recordType: string, records: dbRecordToSave[])
 export async function getRecords(recordType: string, dateStart: Date, dateEnd: Date, key: string | null,
     recordUidStart: number | null, recordUidEnd: number | null, point: {lat: number, lng: number} | null, limit: number, fields: string[]) {
     try {
-        let query = `SELECT * FROM (SELECT * FROM records WHERE record_type = $1`;
+        let query = `SELECT * FROM records WHERE record_type = $1`;
         let queryValues: (string | number | Date)[] = [recordType];
 
         if (key !== null) {
@@ -93,17 +93,17 @@ export async function getRecords(recordType: string, dateStart: Date, dateEnd: D
             query += ` AND record_uid <= $${queryValues.length}`;
         }
 
+        queryValues.push(dateStart, dateEnd);
+        query += ` AND timestamp BETWEEN $${queryValues.length - 1} AND $${queryValues.length}`;
+
         if (point !== null) {
             queryValues.push(point.lat);
             queryValues.push(point.lng);
             query += ` ORDER BY ST_DistanceSphere(geometry, ST_MakePoint($${queryValues.length - 1}, $${queryValues.length}))`;
         }
 
-        queryValues.push(dateStart, dateEnd);
-        query += `) T WHERE timestamp BETWEEN $${queryValues.length - 1} AND $${queryValues.length}`;
-
         queryValues.push(limit);
-        query += ` LIMIT $${queryValues.length}`;
+        query += ` LIMIT $${queryValues.length};`;
 
         // Get records from DB
         let records = await db_postgis.query(query, queryValues);

@@ -15,7 +15,7 @@ Returns a JSON object containing downloading and DB statistics.
 None
 
 ### Data sources
-The maximum number of returned records for one request is 50 000.
+The maximum number of returned records for one request is 10 000.
 
 **Nextbike**
 

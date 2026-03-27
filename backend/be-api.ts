@@ -10,7 +10,7 @@ import cron from 'node-cron';
 
 const app = express();
 const requireAPIKey = JSON.parse(process.env.API_KEY ?? 'true');
-const maxNumberOfRecords = 50000;
+const maxNumberOfRecords = 10000;
 
 import { newAPIUsage, printAPIKeysUsage, writeIntoLog } from './log';
 import { logMsgType } from './types';
