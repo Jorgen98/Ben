@@ -33,6 +33,7 @@ Every record is simple JSON, which represent state of one station in particular 
 **KORDIS Vehicle Positions**
 
 `GET new-ben/records/vehiclePositions`
+`WSS new-ben/ws/vehiclePositions`
 `Fetching time: Every 10 seconds`
 
 The **KORDIS Vehicle Positions** collect data from the internal KORDIS DB. Every record is simple JSON, which represent state of one vehicle in the Integrated transport system of South Moravian Region in particular time. Every state consists from information like:

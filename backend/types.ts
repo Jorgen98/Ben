@@ -21,3 +21,6 @@ export type dataSourceStats = {
     lastFetchedRecords: number,
     databaseRecords: number
 };
+
+// Redis message channel name
+export const redisChannel = "messages";

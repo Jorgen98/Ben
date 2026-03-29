@@ -5,15 +5,16 @@
 import dotenv from 'dotenv';
 import * as soap from "soap";
 
-import { dbRecordToSave, logMsgType } from '../types.js';
+import { dbRecordToSave, logMsgType, redisChannel } from '../types';
 import { saveStatistic, writeIntoLog } from '../log';
 import { saveRecords } from '../db-postgis';
+import { publisher } from '../redis';
 
 // Module variables
 let client: soap.Client | undefined = undefined;
 let fetchInterval: NodeJS.Timeout | null = null;
 let downloading: boolean = false;
-const vehiclePositionsStatsName = 'vehiclePositions';
+export const vehiclePositionsStatsName = 'vehiclePositions';
 
 // .env file include
 dotenv.config();
@@ -32,7 +33,7 @@ export async function startFetchingAndStoringKordisData(): Promise<void> {
     }
 
     log('success', 'KORDIS fetch is running');
-    
+
     // Set regular downloading for vehicle positions data every 10 seconds
     fetchInterval = setInterval(async () => {
         await getAndProcessVehiclePositionsData();
@@ -113,6 +114,11 @@ async function getAndProcessVehiclePositionsData(): Promise<boolean> {
             saveStatistic(vehiclePositionsStatsName, 'downloadedRecords', inputRecords.records.length, 'add');
             saveStatistic(vehiclePositionsStatsName, 'lastFetchedRecords', inputRecords.records.length, 'set');
             downloading = false;
+
+            // Send data to API container to publish via websocket
+            try {
+                await publisher.publish(redisChannel, JSON.stringify({ type: vehiclePositionsStatsName, data: recordsToSave }));
+            } catch (error) {}
 
             return dbSavingState;
         // There was records downloading error

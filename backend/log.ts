@@ -36,6 +36,11 @@ const modules = [
         color: "\x1b[33m"
     },
     {
+        name: process.env.BE_REDIS_NAME,
+        label: process.env.BE_REDIS_NAME,
+        color: "\x1b[33m"
+    },
+    {
         name: process.env.BE_FETCH_MODULE_KORDIS_NAME,
         label: process.env.BE_FETCH_MODULE_KORDIS_NAME,
         color: "\x1b[33m"

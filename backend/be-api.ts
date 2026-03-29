@@ -7,14 +7,17 @@ import express, { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import cron from 'node-cron';
+import { WebSocketServer } from "ws";
 
 const app = express();
 const requireAPIKey = JSON.parse(process.env.API_KEY ?? 'true');
 const maxNumberOfRecords = 10000;
 
 import { newAPIUsage, printAPIKeysUsage, writeIntoLog } from './log';
-import { logMsgType } from './types';
+import { logMsgType, redisChannel } from './types';
 import { connectToDB, getRecords, getStatistics } from './db-postgis';
+import { subscriber } from './redis';
+import { vehiclePositionsStatsName } from './data-sources/kordis';
 
 // .env file include
 dotenv.config();
@@ -27,24 +30,33 @@ function log(type: logMsgType, msg: string) {
 // CORS setup
 app.use(cors());
 
-// Function for API Token verification and request handling
-async function verifyToken(req: Request, res: Response, next: NextFunction) {
+// API verification function
+function isTokenValid(providedToken: string): boolean {
     let tokens: string[] = [];
     try {
         tokens = JSON.parse((process.env.BE_API_MODULE_TOKENS ?? []) as string);
     } catch(error) {}
 
     if (requireAPIKey) {
-        const tokenIdx = tokens.findIndex((token: string) => { return token === req.headers['authorization']});
+        const tokenIdx = tokens.findIndex((token: string) => { return token === providedToken});
 
         if (tokenIdx === -1) {
             log('info', 'Attempt with false API Token verification');
-            res.status(401);
-            res.send();
-            return;
+            return false;
         } else {
             newAPIUsage(tokenIdx.toString());
         }
+    }
+
+    return true;
+}
+
+// Function for API Token verification and request handling
+async function verifyToken(req: Request, res: Response, next: NextFunction) {
+    if (!(isTokenValid(req.headers['authorization'] ?? ''))) {
+        res.status(401);
+        res.send();
+        return;
     }
 
     // Remove API prefix
@@ -223,4 +235,47 @@ app.get('/records/:endpoint', async (req, res) => {
 // Print API key usage intro console
 cron.schedule('0 * * * *', async () => {
     printAPIKeysUsage()
+});
+
+
+// Web socket endpoints handling
+// WSS Vehicle position server
+const wssVP = new WebSocketServer({ server, path: `/new-ben/ws/${vehiclePositionsStatsName}` });
+let wsVP: undefined | any = undefined;
+wssVP.on("connection", (ws, request) => {
+    if (!(isTokenValid(request.headers['authorization'] ?? ''))) {
+        ws.close(1008, "Unauthorized");
+        return;
+    }
+
+    wsVP = ws;
+});
+
+// Subscribe to messages
+subscriber.subscribe(redisChannel, (error) => {
+    if (error) {
+        log('error', error.message);
+    }
+});
+
+// Send messages to connected wss clients after module from fetch service calls publisher function
+subscriber.on("message", async (channel, message) => {
+    try {
+        const data = JSON.parse(message);
+        
+        // Vehicle positions socket
+        if (data.type === vehiclePositionsStatsName) {
+            if (wsVP !== undefined) {
+                wssVP.clients.forEach((client:any) => {
+                    if (client.readyState === WebSocket.OPEN) {
+                        for (const record of data.data) {
+                            client.send(record.data);
+                        }
+                    }
+                });
+            }
+        }
+    } catch (error: any) {
+        log('error', error.toString());
+    }
 });

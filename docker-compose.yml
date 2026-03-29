@@ -57,6 +57,18 @@ services:
         max-file: "10"
     networks:
       - new-ben-network
+  new-ben-redis:
+    container_name: new-ben-redis
+    image: redis:7
+    environment:
+      TZ: "Europe/Bratislava"
+    env_file:
+      - ./env/.env
+    depends_on:
+      new-ben-db-postgis:
+        condition: service_healthy
+    networks:
+      - new-ben-network
   new-ben-db-postgis:
     container_name: new-ben-db-postgis
     image: postgis/postgis:16-master
