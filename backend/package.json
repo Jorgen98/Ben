@@ -1,23 +1,31 @@
 {
-  "name": "ben-backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "app.js",
-  "scripts": {
-    "be-fetch-start": "DB_POSTGIS_HOST='localhost' node -r dotenv/config be-fetch.js dotenv_config_path=../env/.env",
-    "be-fetch-docker": "DB_POSTGIS_HOST='ben-db-postgis' node -r dotenv/config be-fetch.js dotenv_config_path=.env",
-    "be-api-start": "API_KEY=false DB_POSTGIS_HOST='localhost' node -r dotenv/config be-api.js dotenv_config_path=../env/.env",
-    "be-api-docker": "API_KEY=true DB_POSTGIS_HOST='ben-db-postgis' node -r dotenv/config be-api.js dotenv_config_path=.env"
-  },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.2",
-    "express": "^5.1.0",
-    "node-cron": "^4.2.1",
-    "pg": "^8.16.3",
-    "soap": "^1.7.1",
-    "ws": "^8.18.3"
-  }
+    "name": "ben-backend",
+    "version": "1.0.0",
+    "description": "",
+    "scripts": {
+        "be-fetch-start": "DB_POSTGIS_HOST='localhost' ts-node -r dotenv/config be-fetch.ts dotenv_config_path=../env/.env",
+        "be-api-start": "API_KEY=false DB_POSTGIS_HOST='localhost' ts-node -r dotenv/config be-api.ts dotenv_config_path=../env/.env",
+        "build": "tsc"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^17.2.2",
+        "express": "^5.1.0",
+        "express-ws": "^5.0.2",
+        "ioredis": "^5.10.1",
+        "node-cron": "^4.2.1",
+        "pg": "^8.16.3",
+        "soap": "^1.8.0",
+        "ws": "^8.20.0"
+    },
+    "devDependencies": {
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.6",
+        "@types/node": "^25.5.0",
+        "@types/ws": "^8.18.1",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.3"
+    }
 }

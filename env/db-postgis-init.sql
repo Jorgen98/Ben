@@ -1,6 +1,21 @@
-CREATE EXTENSION IF NOT EXISTS postgis CASCADE;
-CREATE TABLE IF NOT EXISTS delay_records (id SERIAL PRIMARY KEY, record_date TIMESTAMPTZ NOT NULL, line_id INT NOT NULL, data JSONB NOT NULL);
-CREATE INDEX delay_idx ON delay_records (id, record_date);
+CREATE SEQUENCE records_uid_seq;
 
-CREATE TABLE IF NOT EXISTS nextbike (id SERIAL PRIMARY KEY, station_uid INT NOT NULL, record_date TIMESTAMPTZ NOT NULL, geom GEOMETRY, data JSONB NOT NULL);
-CREATE INDEX nextbike_idx ON nextbike (station_uid, record_date);
+CREATE TABLE records (
+    record_type TEXT NOT NULL,
+    record_uid BIGINT NOT NULL DEFAULT nextval('records_uid_seq'),
+    key TEXT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
+    geometry GEOMETRY,
+    data JSONB NOT NULL,
+    PRIMARY KEY (record_type, record_uid)
+) PARTITION BY LIST (record_type);
+
+CREATE TABLE records_vehicle_positions PARTITION OF records FOR VALUES IN ('vehiclePositions');
+
+CREATE TABLE records_next_bike PARTITION OF records FOR VALUES IN ('nextBike');
+
+CREATE TABLE records_open_weather PARTITION OF records FOR VALUES IN ('openWeather');
+
+CREATE TABLE records_system_stats PARTITION OF records FOR VALUES IN ('systemStats');
+
+CREATE TABLE IF NOT EXISTS statistics (uid SERIAL PRIMARY KEY, timestamp TIMESTAMPTZ NOT NULL, data JSONB NOT NULL);
