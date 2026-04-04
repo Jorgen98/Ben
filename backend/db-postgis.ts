@@ -103,7 +103,7 @@ export async function getRecords(recordType: string, dateStart: Date, dateEnd: D
         }
 
         queryValues.push(limit);
-        query += ` LIMIT $${queryValues.length};`;
+        query += ` ${point === null ? "ORDER BY record_uid": ""} LIMIT $${queryValues.length};`;
 
         // Get records from DB
         let records = await db_postgis.query(query, queryValues);
@@ -112,7 +112,7 @@ export async function getRecords(recordType: string, dateStart: Date, dateEnd: D
         records = records.rows.map((record: {[key: string]: any}) => {
             record.data['ben'] = {
                 timestamp: record.timestamp,
-                record_uid: record.record_uid,
+                record_uid: parseInt(record.record_uid),
                 key: record.key
             }
             delete record.record_type, record.timestamp, record.record_uid, record.key, record.geometry;

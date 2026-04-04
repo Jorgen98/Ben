@@ -11,7 +11,7 @@ import { WebSocketServer } from "ws";
 
 const app = express();
 const requireAPIKey = JSON.parse(process.env.API_KEY ?? 'true');
-const maxNumberOfRecords = 10000;
+const maxNumberOfRecords = 50000;
 
 import { newAPIUsage, printAPIKeysUsage, writeIntoLog } from './log';
 import { logMsgType, redisChannel } from './types';

@@ -39,9 +39,9 @@ server.on('listening', async () => {
     }
 
     // Start fetching NextBike records
-    await startFetchingAndStoringNextBikeData();
+//    await startFetchingAndStoringNextBikeData();
     // Start fetching Open weather records
-    await startFetchingAndStoringOpenWeatherData();
+//    await startFetchingAndStoringOpenWeatherData();
     // Start fetching Kordis records
     await startFetchingAndStoringKordisData();
     // Store fetch statistics

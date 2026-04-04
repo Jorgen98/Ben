@@ -15,6 +15,7 @@ let client: soap.Client | undefined = undefined;
 let fetchInterval: NodeJS.Timeout | null = null;
 let downloading: boolean = false;
 export const vehiclePositionsStatsName = 'vehiclePositions';
+export const systemStatisticsStatsName = 'systemStats';
 
 // .env file include
 dotenv.config();
@@ -27,17 +28,34 @@ function log(type: logMsgType, msg: string) {
 // Get data and store them intro DB in custom interval for every endpoint
 export async function startFetchingAndStoringKordisData(): Promise<void> {
     // First test attempt
-    if (!(await createSOAPClient()) || !(await getAndProcessVehiclePositionsData())) {
+    if (!(await firstRun())) {
         log('error', 'Failed to start download KORDIS data');
         return;
     }
+    
 
     log('success', 'KORDIS fetch is running');
 
     // Set regular downloading for vehicle positions data every 10 seconds
     fetchInterval = setInterval(async () => {
-        await getAndProcessVehiclePositionsData();
+        //await getAndProcessVehiclePositionsData();
     }, 10 * 1000);
+}
+
+async function firstRun(): Promise<boolean> {
+    if (!(await createSOAPClient())) {
+        return false;
+    }
+    if (!(await getAndProcessVehiclePositionsData())) {
+        return false;
+    }
+    if (!(await getAndProcessSystemStatisticsData())) {
+        return false;
+    }
+    if (!(await getAndProcessLinesTweetsData())) {
+        return false;
+    }
+    return true;
 }
 
 // Stop fetching data
@@ -70,10 +88,14 @@ async function createSOAPClient(): Promise<boolean> {
     }
 }
 
+// Endpoint 1. - Vehicle positions
 // Get and process vehicle position data
 async function getAndProcessVehiclePositionsData(): Promise<boolean> {
     if (!downloading) {
         downloading = true;
+
+        // Get traffic management texts
+        const mgTexts = await downloadTrafficManagementTexts();
         // Get data
         const inputRecords = await downloadVehiclePositionsData();
 
@@ -83,6 +105,218 @@ async function getAndProcessVehiclePositionsData(): Promise<boolean> {
 
             // Prepare records
             const recordsToSave: dbRecordToSave[] = inputRecords.records
+            // Remove damaged records
+            .filter((record: any) => {
+                try {
+                    return typeof(parseFloat(record.Latitude)) === 'number' &&
+                        typeof(parseFloat(record.Longitude)) === 'number' &&
+                        typeof(parseFloat(record.LineID)) === 'number' &&
+                        JSON.stringify(record);
+                } catch (error) {
+                    return false;
+                };
+            })
+            // Remap records
+            .map((record: any) => {
+                // Add traffic management text related to vehicle if any exists
+                if (mgTexts.success) {
+                    const idx = mgTexts.records.findIndex((text) => { return text.CarNum === record.CarNum });
+                    if (idx !== -1) {
+                        record['TMFlagText'] = mgTexts.records[idx]['TMFlagText'];
+                    } else {
+                        record['TMFlagText'] = "";
+                    }
+                }
+
+                return {
+                    // As general key is set line ID
+                    key: record.LineID,
+                    // Vehicle geometry
+                    geometry: {
+                        lat: parseFloat(record.Latitude),
+                        lng: parseFloat(record.Longitude)
+                    },
+                    // Record itself
+                    data: JSON.stringify(record)
+                }
+            });
+
+            // Store records into DB
+            const dbSavingState = await saveRecords(vehiclePositionsStatsName, recordsToSave);
+            saveStatistic(vehiclePositionsStatsName, 'downloadedRecords', inputRecords.records.length, 'add');
+            saveStatistic(vehiclePositionsStatsName, 'lastFetchedRecords', inputRecords.records.length, 'set');
+            downloading = false;
+
+            // Send data to API container to publish via websocket
+            try {
+                await publisher.publish(redisChannel, JSON.stringify({ type: vehiclePositionsStatsName, data: recordsToSave }));
+            } catch (error) {}
+
+            return dbSavingState;
+        // There was records downloading error
+        } else {
+            saveStatistic(vehiclePositionsStatsName, 'failedFetches', 1, 'add');
+            downloading = false;
+            return false;
+        }
+    } else {
+        return true;
+    }
+}
+
+// Download records from source
+async function downloadVehiclePositionsData(): Promise <{success: boolean, records: any[]}> {
+    return new Promise(async (resolve) => {
+        if (!client || !client.KORDISService?.BasicHttpBinding_ITrafficState?.GetTrafficState) {
+            resolve({success: false, records: []});
+            return;
+        }
+
+        // SOAP request
+        client.KORDISService.BasicHttpBinding_ITrafficState.GetTrafficState({}, async (error: string, result: any) => {
+            if (error) {
+                log('error', error);
+                resolve({success: false, records: []});
+                return;
+            }
+
+            // Try to parse records
+            let recordsToSave = [];
+            try {
+                recordsToSave = JSON.parse(JSON.stringify(result.GetTrafficStateResult.ItemList['TrafficStateResp.Entry']));
+                resolve({success: true, records: recordsToSave});
+            } catch(error) {
+                resolve({success: false, records: []});
+                return;
+            }
+        });
+    });
+}
+
+// Download traffic messages
+async function downloadTrafficManagementTexts(): Promise <{success: boolean, records: any[]}> {
+    return new Promise(async (resolve) => {
+        if (!client || !client.KORDISService?.BasicHttpBinding_ITrafficState?.GetTrafficManagementText) {
+            resolve({success: false, records: []});
+            return;
+        }
+
+        // SOAP request
+        client.KORDISService.BasicHttpBinding_ITrafficState.GetTrafficManagementText({}, async (error: string, result: any) => {
+            if (error) {
+                log('error', error);
+                resolve({success: false, records: []});
+                return;
+            }
+
+            // Try to parse records
+            try {
+                const texts = JSON.parse((JSON.stringify(result.GetTrafficManagementTextResult.TMTextL['TMTextResp.Entry'])));
+                resolve({success: true, records: texts});
+            } catch(error) {
+                resolve({success: false, records: []});
+                return;
+            }
+        });
+    });
+}
+
+// Endpoint 2. - System statistics
+// Get and process IDS JMK state
+async function getAndProcessSystemStatisticsData(): Promise<boolean> {
+    if (!downloading) {
+        downloading = true;
+        // Get data
+        const inputRecords = await downloadSystemStatisticsData();
+
+        // If the fetching of records was successful, store records into DB
+        if (inputRecords.success) {
+            saveStatistic(systemStatisticsStatsName, 'successFetches', 1, 'add');
+
+            // Prepare records
+            const recordsToSave: dbRecordToSave[] = inputRecords.records
+            // Remap records
+            .map((record: any) => {
+                return {
+                    // As general key is set line ID
+                    key: "0",
+                    // Vehicle geometry
+                    geometry: {
+                        lat: 0,
+                        lng: 0
+                    },
+                    // Record itself
+                    data: JSON.stringify(record)
+                }
+            });
+
+            // Store records into DB
+            const dbSavingState = await saveRecords(systemStatisticsStatsName, recordsToSave);
+            saveStatistic(systemStatisticsStatsName, 'downloadedRecords', inputRecords.records.length, 'add');
+            saveStatistic(systemStatisticsStatsName, 'lastFetchedRecords', inputRecords.records.length, 'set');
+            downloading = false;
+
+            // Send data to API container to publish via websocket
+            try {
+                await publisher.publish(redisChannel, JSON.stringify({ type: systemStatisticsStatsName, data: recordsToSave }));
+            } catch (error) {}
+
+            return dbSavingState;
+        // There was records downloading error
+        } else {
+            saveStatistic(systemStatisticsStatsName, 'failedFetches', 1, 'add');
+            downloading = false;
+            return false;
+        }
+    } else {
+        return true;
+    }
+}
+
+// Download records from source
+async function downloadSystemStatisticsData(): Promise <{success: boolean, records: any[]}> {
+    return new Promise(async (resolve) => {
+        if (!client || !client.KORDISService?.BasicHttpBinding_IActualTrafficPerformance?.GetActualTrafficPerformance) {
+            resolve({success: false, records: []});
+            return;
+        }
+
+        // SOAP request
+        client.KORDISService.BasicHttpBinding_IActualTrafficPerformance.GetActualTrafficPerformance({}, async (error: string, result: any) => {
+            if (error) {
+                log('error', error);
+                resolve({success: false, records: []});
+                return;
+            }
+
+            // Try to parse records
+            try {
+                const stats = JSON.parse((JSON.stringify(result.GetActualTrafficPerformanceResult)));
+                resolve({success: true, records: [stats]});
+            } catch(error) {
+                resolve({success: false, records: []});
+                return;
+            }
+        });
+    });
+}
+
+// Endpoint 3. - Lines tweets
+// 
+async function getAndProcessLinesTweetsData(): Promise<boolean> {
+    if (!downloading) {
+        downloading = true;
+        // Get data
+        const inputRecords = await downloadLinesTweetsData();
+
+        // If the fetching of records was successful, store records into DB
+        if (inputRecords.success) {
+            saveStatistic(vehiclePositionsStatsName, 'successFetches', 1, 'add');
+
+            // Prepare records
+            const recordsToSave: dbRecordToSave[] = inputRecords.records;
+            console.log(recordsToSave)
+            /*
             // Remove damaged records
             .filter((record: any) => {
                 try {
@@ -120,7 +354,8 @@ async function getAndProcessVehiclePositionsData(): Promise<boolean> {
                 await publisher.publish(redisChannel, JSON.stringify({ type: vehiclePositionsStatsName, data: recordsToSave }));
             } catch (error) {}
 
-            return dbSavingState;
+            return dbSavingState;*/
+            return true;
         // There was records downloading error
         } else {
             saveStatistic(vehiclePositionsStatsName, 'failedFetches', 1, 'add');
@@ -132,15 +367,16 @@ async function getAndProcessVehiclePositionsData(): Promise<boolean> {
     }
 }
 
-// Download records from OpenWeather source
-async function downloadVehiclePositionsData(): Promise <{success: boolean, records: any[]}> {
+// Download records from source
+async function downloadLinesTweetsData(): Promise <{success: boolean, records: any[]}> {
     return new Promise(async (resolve) => {
-        if (!client || !client.KORDISService?.BasicHttpBinding_ITrafficState?.GetTrafficState) {
-            return {success: false, records: []};
+        if (!client || !client.KORDISService?.BasicHttpBinding_ITweetsOnLines?.GetTweets) {
+            resolve({success: false, records: []});
+            return;
         }
 
         // SOAP request
-        client.KORDISService.BasicHttpBinding_ITrafficState.GetTrafficState({}, async (error: string, result: any) => {
+        client.KORDISService.BasicHttpBinding_ITweetsOnLines.GetTweets({}, async (error: string, result: any) => {
             if (error) {
                 log('error', error);
                 resolve({success: false, records: []});
@@ -148,10 +384,9 @@ async function downloadVehiclePositionsData(): Promise <{success: boolean, recor
             }
 
             // Try to parse records
-            let recordsToSave = [];
             try {
-                recordsToSave = JSON.parse(JSON.stringify(result.GetTrafficStateResult.ItemList['TrafficStateResp.Entry']));
-                resolve({success: true, records: recordsToSave});
+                const tweets = JSON.parse((JSON.stringify(result.ResolveIncRoCOrderResult?.['RouteOnCallResp.Entry'])));
+                resolve({success: true, records: tweets});
             } catch(error) {
                 resolve({success: false, records: []});
                 return;
