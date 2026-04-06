@@ -20,11 +20,7 @@ function log(type: logMsgType, msg: string) {
 // Postgis DB instant
 const db_postgis = new Pool({
     user: process.env.DB_POSTGIS_USER,
-<<<<<<< HEAD
-    host: process.env.DB_POSTGIS_HOST ?? 'new-ben-db-postgis',
-=======
     host: process.env.DB_POSTGIS_HOST ?? 'ben-db-postgis',
->>>>>>> 2426144 (New Ben 1.0)
     database: process.env.DB_POSTGIS_DATABASE,
     password: process.env.DB_POSTGIS_PASSWORD,
     port: 5432,
