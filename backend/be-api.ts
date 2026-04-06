@@ -60,7 +60,7 @@ async function verifyToken(req: Request, res: Response, next: NextFunction) {
     }
 
     // Remove API prefix
-    req.url = req.url.slice(8);
+    req.url = req.url.slice(4);
     next();
 }
 
