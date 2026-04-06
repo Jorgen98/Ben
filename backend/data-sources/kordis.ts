@@ -366,6 +366,11 @@ async function downloadLinesTweetsData(): Promise <{success: boolean, records: a
             }
             // Try to parse records
             try {
+                // There are no tweets
+                if (result.GetTweetsResult === null) {
+                    resolve({success: true, records: []});
+                    return;
+                }
                 const tweets = JSON.parse((JSON.stringify(result.GetTweetsResult?.['TweetsOnLinesResp'])));
                 resolve({success: true, records: tweets});
             } catch(error) {
