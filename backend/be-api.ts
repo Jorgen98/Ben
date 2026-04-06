@@ -240,7 +240,7 @@ cron.schedule('0 * * * *', async () => {
 
 // Web socket endpoints handling
 // WSS Vehicle position server
-const wssVP = new WebSocketServer({ server, path: `/new-ben/ws/${vehiclePositionsStatsName}` });
+const wssVP = new WebSocketServer({ server, path: `/ben/ws/${vehiclePositionsStatsName}` });
 let wsVP: undefined | any = undefined;
 wssVP.on("connection", (ws, request) => {
     if (!(isTokenValid(request.headers['authorization'] ?? ''))) {

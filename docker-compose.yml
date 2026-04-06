@@ -56,21 +56,21 @@ services:
         max-size: "200k"
         max-file: "10"
     networks:
-      - new-ben-network
-  new-ben-redis:
-    container_name: new-ben-redis
+      - ben-network
+  ben-redis:
+    container_name: ben-redis
     image: redis:7
     environment:
       TZ: "Europe/Bratislava"
     env_file:
       - ./env/.env
     depends_on:
-      new-ben-db-postgis:
+      ben-db-postgis:
         condition: service_healthy
     networks:
-      - new-ben-network
-  new-ben-db-postgis:
-    container_name: new-ben-db-postgis
+      - ben-network
+  ben-db-postgis:
+    container_name: ben-db-postgis
     image: postgis/postgis:16-master
     volumes:
       - ./env/db-postgis-init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -98,5 +98,5 @@ services:
     networks:
       - new-ben-network
 networks:
-  new-ben-network:
-    name: new-ben-network
+  ben-network:
+    name: ben-network

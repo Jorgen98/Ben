@@ -39,9 +39,15 @@ server.on('listening', async () => {
     }
 
     // Start fetching NextBike records
+<<<<<<< HEAD
 //    await startFetchingAndStoringNextBikeData();
     // Start fetching Open weather records
 //    await startFetchingAndStoringOpenWeatherData();
+=======
+    await startFetchingAndStoringNextBikeData();
+    // Start fetching Open weather records
+    await startFetchingAndStoringOpenWeatherData();
+>>>>>>> 2426144 (New Ben 1.0)
     // Start fetching Kordis records
     await startFetchingAndStoringKordisData();
     // Store fetch statistics

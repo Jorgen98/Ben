@@ -16,6 +16,7 @@ let fetchInterval: NodeJS.Timeout | null = null;
 let downloading: boolean = false;
 export const vehiclePositionsStatsName = 'vehiclePositions';
 export const systemStatisticsStatsName = 'systemStats';
+export const lineTweetsStatsName = 'lineTweets';
 
 // .env file include
 dotenv.config();
@@ -38,8 +39,14 @@ export async function startFetchingAndStoringKordisData(): Promise<void> {
 
     // Set regular downloading for vehicle positions data every 10 seconds
     fetchInterval = setInterval(async () => {
-        //await getAndProcessVehiclePositionsData();
+        await getAndProcessVehiclePositionsData();
     }, 10 * 1000);
+
+    // Set regular downloading for system statistics and line tweets data every 5 minutes
+    fetchInterval = setInterval(async () => {
+        await getAndProcessSystemStatisticsData();
+        await getAndProcessLinesTweetsData();
+    }, 5 * 60 * 1000);
 }
 
 async function firstRun(): Promise<boolean> {
@@ -222,7 +229,7 @@ async function downloadTrafficManagementTexts(): Promise <{success: boolean, rec
 }
 
 // Endpoint 2. - System statistics
-// Get and process IDS JMK state
+// Get and process actual IDS JMK state
 async function getAndProcessSystemStatisticsData(): Promise<boolean> {
     if (!downloading) {
         downloading = true;
@@ -238,9 +245,9 @@ async function getAndProcessSystemStatisticsData(): Promise<boolean> {
             // Remap records
             .map((record: any) => {
                 return {
-                    // As general key is set line ID
+                    // General key does not exists
                     key: "0",
-                    // Vehicle geometry
+                    // Statistics do not have position
                     geometry: {
                         lat: 0,
                         lng: 0
@@ -255,11 +262,6 @@ async function getAndProcessSystemStatisticsData(): Promise<boolean> {
             saveStatistic(systemStatisticsStatsName, 'downloadedRecords', inputRecords.records.length, 'add');
             saveStatistic(systemStatisticsStatsName, 'lastFetchedRecords', inputRecords.records.length, 'set');
             downloading = false;
-
-            // Send data to API container to publish via websocket
-            try {
-                await publisher.publish(redisChannel, JSON.stringify({ type: systemStatisticsStatsName, data: recordsToSave }));
-            } catch (error) {}
 
             return dbSavingState;
         // There was records downloading error
@@ -302,41 +304,27 @@ async function downloadSystemStatisticsData(): Promise <{success: boolean, recor
 }
 
 // Endpoint 3. - Lines tweets
-// 
+// Line tweets - information about errors during service
 async function getAndProcessLinesTweetsData(): Promise<boolean> {
     if (!downloading) {
         downloading = true;
         // Get data
         const inputRecords = await downloadLinesTweetsData();
-
         // If the fetching of records was successful, store records into DB
         if (inputRecords.success) {
-            saveStatistic(vehiclePositionsStatsName, 'successFetches', 1, 'add');
+            saveStatistic(lineTweetsStatsName, 'successFetches', 1, 'add');
 
             // Prepare records
-            const recordsToSave: dbRecordToSave[] = inputRecords.records;
-            console.log(recordsToSave)
-            /*
-            // Remove damaged records
-            .filter((record: any) => {
-                try {
-                    return typeof(parseFloat(record.Latitude)) === 'number' &&
-                        typeof(parseFloat(record.Longitude)) === 'number' &&
-                        typeof(parseFloat(record.LineID)) === 'number' &&
-                        JSON.stringify(record);
-                } catch (error) {
-                    return false;
-                };
-            })
+            const recordsToSave: dbRecordToSave[] = inputRecords.records
             // Remap records
             .map((record: any) => {
                 return {
-                    // As general key is set line ID
-                    key: record.LineID,
-                    // Vehicle geometry
+                    // As general key is set record ID
+                    key: record.ID,
+                    // Tweet does not have position
                     geometry: {
-                        lat: parseFloat(record.Latitude),
-                        lng: parseFloat(record.Longitude)
+                        lat: 0,
+                        lng: 0
                     },
                     // Record itself
                     data: JSON.stringify(record)
@@ -344,21 +332,15 @@ async function getAndProcessLinesTweetsData(): Promise<boolean> {
             });
 
             // Store records into DB
-            const dbSavingState = await saveRecords(vehiclePositionsStatsName, recordsToSave);
-            saveStatistic(vehiclePositionsStatsName, 'downloadedRecords', inputRecords.records.length, 'add');
-            saveStatistic(vehiclePositionsStatsName, 'lastFetchedRecords', inputRecords.records.length, 'set');
+            const dbSavingState = await saveRecords(lineTweetsStatsName, recordsToSave);
+            saveStatistic(lineTweetsStatsName, 'downloadedRecords', inputRecords.records.length, 'add');
+            saveStatistic(lineTweetsStatsName, 'lastFetchedRecords', inputRecords.records.length, 'set');
             downloading = false;
 
-            // Send data to API container to publish via websocket
-            try {
-                await publisher.publish(redisChannel, JSON.stringify({ type: vehiclePositionsStatsName, data: recordsToSave }));
-            } catch (error) {}
-
-            return dbSavingState;*/
-            return true;
+            return dbSavingState;
         // There was records downloading error
         } else {
-            saveStatistic(vehiclePositionsStatsName, 'failedFetches', 1, 'add');
+            saveStatistic(lineTweetsStatsName, 'failedFetches', 1, 'add');
             downloading = false;
             return false;
         }
@@ -382,10 +364,9 @@ async function downloadLinesTweetsData(): Promise <{success: boolean, records: a
                 resolve({success: false, records: []});
                 return;
             }
-
             // Try to parse records
             try {
-                const tweets = JSON.parse((JSON.stringify(result.ResolveIncRoCOrderResult?.['RouteOnCallResp.Entry'])));
+                const tweets = JSON.parse((JSON.stringify(result.GetTweetsResult?.['TweetsOnLinesResp'])));
                 resolve({success: true, records: tweets});
             } catch(error) {
                 resolve({success: false, records: []});

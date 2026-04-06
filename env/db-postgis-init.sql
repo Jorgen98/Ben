@@ -18,4 +18,6 @@ CREATE TABLE records_open_weather PARTITION OF records FOR VALUES IN ('openWeath
 
 CREATE TABLE records_system_stats PARTITION OF records FOR VALUES IN ('systemStats');
 
+CREATE TABLE records_line_tweets PARTITION OF records FOR VALUES IN ('lineTweets');
+
 CREATE TABLE IF NOT EXISTS statistics (uid SERIAL PRIMARY KEY, timestamp TIMESTAMPTZ NOT NULL, data JSONB NOT NULL);
