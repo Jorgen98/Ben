@@ -1,5 +1,5 @@
 services:
-  new-ben-proxy-server:
-    container_name: new-ben-proxy-server
+  ben-proxy-server:
+    container_name: ben-proxy-server
     ports:
       - 80:80

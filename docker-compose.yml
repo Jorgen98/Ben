@@ -1,21 +1,21 @@
 services:
-  new-ben-proxy-server:
-    container_name: new-ben-proxy-server
+  ben-proxy-server:
+    container_name: ben-proxy-server
     image: nginx:1.19
     depends_on:
-      new-ben-db-postgis:
+      ben-db-postgis:
         condition: service_healthy
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
     networks:
-      - new-ben-network
-  new-ben-be-fetch:
-    container_name: new-ben-be-fetch
+      - ben-network
+  ben-be-fetch:
+    container_name: ben-be-fetch
     build:
       context: ./backend
     command: node be-fetch.js
     depends_on:
-      new-ben-db-postgis:
+      ben-db-postgis:
         condition: service_healthy
     environment:
       TZ: "Europe/Bratislava"
@@ -32,14 +32,14 @@ services:
         max-size: "200k"
         max-file: "10"
     networks:
-      - new-ben-network
-  new-ben-be-api:
-    container_name: new-ben-be-api
+      - ben-network
+  ben-be-api:
+    container_name: ben-be-api
     build:
       context: ./backend
     command: node be-api.js
     depends_on:
-      new-ben-db-postgis:
+      ben-db-postgis:
         condition: service_healthy
     environment:
       TZ: "Europe/Bratislava"
@@ -96,7 +96,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - new-ben-network
+      - ben-network
 networks:
   ben-network:
     name: ben-network
