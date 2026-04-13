@@ -12,7 +12,7 @@ import { saveRecords } from '../db-postgis';
 // Module variables
 let fetchInterval: NodeJS.Timeout | null = null;
 let downloading: boolean = false;
-const openWeatherStatsName = 'openWeather';
+export const openWeatherStatsName = 'openWeather';
 const apiToken = process.env.BE_FETCH_MODULE_OPENWEATHER_TOKEN;
 const positions: {name: string, lat: number, lng: number}[] = JSON.parse(process.env.BE_FETCH_MODULE_OPENWEATHER_PLACES as string ?? '[]');
 

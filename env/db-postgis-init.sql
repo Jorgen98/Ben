@@ -1,23 +1,46 @@
-CREATE SEQUENCE records_uid_seq;
-
-CREATE TABLE records (
-    record_type TEXT NOT NULL,
-    record_uid BIGINT NOT NULL DEFAULT nextval('records_uid_seq'),
+CREATE TABLE vehiclePositions (
+    id BIGSERIAL PRIMARY KEY,
     key TEXT NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL,
     geometry GEOMETRY,
-    data JSONB NOT NULL,
-    PRIMARY KEY (record_type, record_uid)
-) PARTITION BY LIST (record_type);
+    data JSONB NOT NULL
+);
+CREATE INDEX vehiclePositions_idx ON vehiclePositions(id, timestamp);
 
-CREATE TABLE records_vehicle_positions PARTITION OF records FOR VALUES IN ('vehiclePositions');
+CREATE TABLE nextBike (
+    id BIGSERIAL PRIMARY KEY,
+    key TEXT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
+    geometry GEOMETRY,
+    data JSONB NOT NULL
+);
+CREATE INDEX nextBike_idx ON nextBike(id, timestamp);
 
-CREATE TABLE records_next_bike PARTITION OF records FOR VALUES IN ('nextBike');
+CREATE TABLE openWeather (
+    id BIGSERIAL PRIMARY KEY,
+    key TEXT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
+    geometry GEOMETRY,
+    data JSONB NOT NULL
+);
+CREATE INDEX openWeather_idx ON openWeather(id, timestamp);
 
-CREATE TABLE records_open_weather PARTITION OF records FOR VALUES IN ('openWeather');
+CREATE TABLE systemStats (
+    id BIGSERIAL PRIMARY KEY,
+    key TEXT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
+    geometry GEOMETRY,
+    data JSONB NOT NULL
+);
+CREATE INDEX systemStats_idx ON systemStats(id, timestamp);
 
-CREATE TABLE records_system_stats PARTITION OF records FOR VALUES IN ('systemStats');
-
-CREATE TABLE records_line_tweets PARTITION OF records FOR VALUES IN ('lineTweets');
+CREATE TABLE lineTweets (
+    id BIGSERIAL PRIMARY KEY,
+    key TEXT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
+    geometry GEOMETRY,
+    data JSONB NOT NULL
+);
+CREATE INDEX lineTweets_idx ON lineTweets(id, timestamp);
 
 CREATE TABLE IF NOT EXISTS statistics (uid SERIAL PRIMARY KEY, timestamp TIMESTAMPTZ NOT NULL, data JSONB NOT NULL);

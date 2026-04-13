@@ -7,4 +7,4 @@ run:
 prod:
 	docker compose --env-file ./env/.env -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 stop:
-	docker container stop new-ben-be-api new-ben-proxy-server new-ben-be-fetch new-ben-db-postgis
+	docker container stop ben-be-api ben-proxy-server ben-be-fetch ben-db-postgis

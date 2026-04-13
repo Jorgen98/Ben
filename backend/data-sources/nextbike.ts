@@ -12,7 +12,7 @@ import { saveRecords } from '../db-postgis';
 // Module variables
 let fetchInterval: NodeJS.Timeout | null = null;
 let downloading: boolean = false;
-const nextBikeStatsName = 'nextBike';
+export const nextBikeStatsName = 'nextBike';
 
 // .env file include
 dotenv.config();

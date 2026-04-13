@@ -41,7 +41,6 @@ function isTokenValid(providedToken: string): boolean {
         const tokenIdx = tokens.findIndex((token: string) => { return token === providedToken});
 
         if (tokenIdx === -1) {
-            log('info', 'Attempt with false API Token verification');
             return false;
         } else {
             newAPIUsage(tokenIdx.toString());

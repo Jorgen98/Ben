@@ -8,6 +8,9 @@ import dotenv from 'dotenv';
 
 import { dataSourceStats, dbRecordToSave, logMsgType } from './types';
 import { writeIntoLog } from './log';
+import { lineTweetsStatsName, systemStatisticsStatsName, vehiclePositionsStatsName } from './data-sources/kordis';
+import { nextBikeStatsName } from './data-sources/nextbike';
+import { openWeatherStatsName } from './data-sources/openweather';
 
 // .env file include
 dotenv.config();
@@ -16,6 +19,15 @@ dotenv.config();
 function log(type: logMsgType, msg: string) {
     writeIntoLog(process.env.DB_POSTGIS_MODULE_NAME, type, msg)
 }
+
+// Records table names
+const recordsTables = new Set([
+    vehiclePositionsStatsName,
+    systemStatisticsStatsName,
+    lineTweetsStatsName,
+    nextBikeStatsName,
+    openWeatherStatsName
+]);
 
 // Postgis DB instant
 const db_postgis = new Pool({
@@ -52,14 +64,19 @@ export async function saveRecords(recordType: string, records: dbRecordToSave[])
         return true;
     }
 
+    // Check table name
+    if (!recordsTables.has(recordType)) {
+        return false;
+    }
+
     // Construct DB query
     const queryValues: string[] = [];
     const queryPlaceholders = records.map((record, index) => {
-        const base = index * 5;
-        queryValues.push(recordType, record.key, record.geometry.lat.toString(), record.geometry.lng.toString(), record.data);
-        return `(current_timestamp, $${base + 1}, $${base + 2}, ST_SetSRID(ST_MakePoint($${base + 3},$${base + 4}), 4326), $${base + 5}::jsonb)`;
+        const base = index * 4;
+        queryValues.push(record.key, record.geometry.lat.toString(), record.geometry.lng.toString(), record.data);
+        return `(current_timestamp, $${base + 1}, ST_SetSRID(ST_MakePoint($${base + 2},$${base + 3}), 4326), $${base + 4}::jsonb)`;
     }).join(',');
-    const query = `INSERT INTO records (timestamp, record_type, key, geometry, data) VALUES ${queryPlaceholders};`;
+    const query = `INSERT INTO ${recordType} (timestamp, key, geometry, data) VALUES ${queryPlaceholders};`;
 
     // Store records
     try {
@@ -74,9 +91,19 @@ export async function saveRecords(recordType: string, records: dbRecordToSave[])
 // Get records from DB
 export async function getRecords(recordType: string, dateStart: Date, dateEnd: Date, key: string | null,
     recordUidStart: number | null, recordUidEnd: number | null, point: {lat: number, lng: number} | null, limit: number, fields: string[]) {
+
+
+    // Check table name
+    if (!recordsTables.has(recordType)) {
+        return [];
+    }
+
     try {
-        let query = `SELECT * FROM records WHERE record_type = $1`;
-        let queryValues: (string | number | Date)[] = [recordType];
+        let query = `SELECT * FROM ${recordType}`;
+        let queryValues: (string | number | Date)[] = [];
+
+        queryValues.push(dateStart, dateEnd);
+        query += ` WHERE timestamp BETWEEN $${queryValues.length - 1} AND $${queryValues.length}`;
 
         if (key !== null) {
             queryValues.push(key);
@@ -85,16 +112,13 @@ export async function getRecords(recordType: string, dateStart: Date, dateEnd: D
 
         if (recordUidStart !== null) {
             queryValues.push(recordUidStart);
-            query += ` AND record_uid >= $${queryValues.length}`;
+            query += ` AND id >= $${queryValues.length}`;
         }
 
         if (recordUidEnd !== null) {
             queryValues.push(recordUidEnd);
-            query += ` AND record_uid <= $${queryValues.length}`;
+            query += ` AND id <= $${queryValues.length}`;
         }
-
-        queryValues.push(dateStart, dateEnd);
-        query += ` AND timestamp BETWEEN $${queryValues.length - 1} AND $${queryValues.length}`;
 
         if (point !== null) {
             queryValues.push(point.lat);
@@ -103,7 +127,7 @@ export async function getRecords(recordType: string, dateStart: Date, dateEnd: D
         }
 
         queryValues.push(limit);
-        query += ` ${point === null ? "ORDER BY record_uid": ""} LIMIT $${queryValues.length};`;
+        query += ` ${point === null ? "ORDER BY id": ""} LIMIT $${queryValues.length};`;
 
         // Get records from DB
         let records = await db_postgis.query(query, queryValues);
@@ -112,10 +136,10 @@ export async function getRecords(recordType: string, dateStart: Date, dateEnd: D
         records = records.rows.map((record: {[key: string]: any}) => {
             record.data['ben'] = {
                 timestamp: record.timestamp,
-                record_uid: parseInt(record.record_uid),
+                record_uid: parseInt(record.id),
                 key: record.key
             }
-            delete record.record_type, record.timestamp, record.record_uid, record.key, record.geometry;
+            delete record.record_type, record.timestamp, record.id, record.key, record.geometry;
 
             return record.data;
         });
@@ -170,8 +194,13 @@ export async function getStatistics(limit: number = Infinity): Promise<{uid: num
 
 // Count actual number of records in DB
 export async function getRecordsNum(recordType: string): Promise<number> {
+    // Check table name
+    if (!recordsTables.has(recordType)) {
+        return 0;
+    }
+
     try {
-        return (parseInt((await db_postgis.query(`SELECT COUNT(*) FROM records WHERE record_type = $1;`, [recordType]))?.rows[0]?.count)) ?? 0;
+        return (parseInt((await db_postgis.query(`SELECT COUNT(*) FROM ${recordType};`))?.rows[0]?.count)) ?? 0;
     } catch(error) {
         log('error', error as string);
         return 0;
