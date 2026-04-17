@@ -11,7 +11,7 @@ const app = express();
 
 import { saveStatisticsIntoDB, writeIntoLog } from './log';
 import { logMsgType } from './types';
-import { connectToDB } from './db-postgis';
+import { connectToDB, removeOldVehiclePositionsRecordsData } from './db-postgis';
 import { startFetchingAndStoringNextBikeData, stopFetchingNextBikeData } from './data-sources/nextbike';
 import { startFetchingAndStoringOpenWeatherData, stopFetchingOpenWeatherData } from './data-sources/openweather';
 import { startFetchingAndStoringKordisData, stopFetchingKordisData } from './data-sources/kordis';
@@ -51,6 +51,7 @@ server.on('listening', async () => {
 // Save fetch statistics
 cron.schedule('*/10 * * * *', async () => {
     await saveStatisticsIntoDB();
+    await removeOldVehiclePositionsRecordsData();
 });
 
 // On server shutdown

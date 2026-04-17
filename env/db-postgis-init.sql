@@ -6,6 +6,7 @@ CREATE TABLE vehiclePositions (
     data JSONB NOT NULL
 );
 CREATE INDEX vehiclePositions_idx ON vehiclePositions(id, timestamp);
+CREATE INDEX vehiclePositions_idx_2 ON vehiclePositions(id, key, timestamp);
 
 CREATE TABLE nextBike (
     id BIGSERIAL PRIMARY KEY,

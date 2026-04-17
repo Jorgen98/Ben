@@ -206,3 +206,14 @@ export async function getRecordsNum(recordType: string): Promise<number> {
         return 0;
     }
 }
+
+// Remove old delay records
+export async function removeOldVehiclePositionsRecordsData() {
+    try {
+        await db_postgis.query("DELETE FROM vehiclePositions WHERE timestamp < NOW() - INTERVAL '2 days'");
+        return true;
+    } catch(error) {
+        log('error', error as string);
+        return false;
+    }
+}
